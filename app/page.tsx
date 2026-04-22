@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Sparkles, ArrowRight, Menu, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingBag, Sparkles, Menu, X, ArrowDown } from 'lucide-react';
 
-// --- Simulation des données Stripe (Amélie gère ça sur son dashboard) ---
+// --- Simulation des données Stripe ---
 const products = [
   {
     id: 'prod_1',
@@ -11,7 +11,7 @@ const products = [
     price: "1 850 €",
     image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=1200&auto=format&fit=crop",
     category: "Sac sur mesure",
-    tag: "Best-seller"
+    tag: "Signature"
   },
   {
     id: 'prod_2',
@@ -19,7 +19,7 @@ const products = [
     price: "920 €",
     image: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?q=80&w=1200&auto=format&fit=crop",
     category: "Accessoires",
-    tag: "Édition Limitée"
+    tag: "Série Limitée"
   },
   {
     id: 'prod_3',
@@ -27,170 +27,244 @@ const products = [
     price: "2 100 €",
     image: "https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=1200&auto=format&fit=crop",
     category: "Saison",
-    tag: "Unique"
+    tag: "Pièce Unique"
   }
 ];
 
-export default function App() {
-  const [scrolled, setScrolled] = useState(false);
+// --- Composant d'animation élégante au scroll ---
+const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.unobserve(entry.target); // S'anime une seule fois
+        }
+      },
+      { threshold: 0.1, rootMargin: "50px" }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
   }, []);
 
   return (
-    <div className="min-h-screen bg-luxury-cream text-luxury-charcoal">
+    <div 
+      ref={ref} 
+      className={`transition-all duration-[1500ms] ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+};
+
+export default function App() {
+  const [scrolled, setScrolled] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Gestion du scroll pour la navbar ET l'effet parallax
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+      setScrollY(window.scrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Fonction de défilement doux
+  const scrollTo = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-luxury-cream text-luxury-charcoal selection:bg-luxury-gold selection:text-white">
       
       {/* HEADER NAVIGATION */}
-      <nav className={`fixed w-full z-50 transition-all duration-700 px-6 md:px-16 py-6 flex justify-between items-center ${
-        scrolled ? 'bg-white/90 backdrop-blur-md py-4 shadow-sm' : 'bg-transparent'
+      <nav className={`fixed w-full z-50 transition-all duration-700 px-6 md:px-24 flex justify-between items-center ${
+        scrolled ? 'bg-white/95 backdrop-blur-md py-5 shadow-sm' : 'bg-transparent py-8'
       }`}>
-        <div className="flex gap-10 text-[11px] uppercase tracking-widest hidden lg:flex font-medium">
-          <a href="#store" className="hover:text-luxury-gold transition-colors underline-offset-8 hover:underline">La Boutique</a>
-          <a href="#ia" className="hover:text-luxury-gold transition-colors flex items-center gap-2">
-            <span className="flex items-center gap-2 italic font-serif lowercase tracking-normal text-xs">
-              <Sparkles size={14} className="text-luxury-gold" /> atelier ia
+        <div className="flex gap-12 text-[10px] uppercase tracking-[0.2em] hidden lg:flex font-light">
+          <button onClick={() => scrollTo('store')} className="hover:text-luxury-gold transition-colors underline-offset-8 hover:underline uppercase tracking-[0.2em]">Collections</button>
+          <button onClick={() => scrollTo('ia')} className="hover:text-luxury-gold transition-colors flex items-center gap-2">
+            <span className="flex items-center gap-2 italic font-serif lowercase tracking-normal text-[13px]">
+              <Sparkles size={12} className="text-luxury-gold" /> l'atelier ia
             </span>
-          </a>
+          </button>
         </div>
 
-        <div className="text-2xl md:text-3xl tracking-[0.4em] font-serif uppercase text-center">
+        <div className="text-xl md:text-2xl tracking-[0.3em] font-serif uppercase text-center font-light cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
           Amélie Purtell
         </div>
 
         <div className="flex items-center gap-8">
-          <button className="relative group">
-            <ShoppingBag size={22} strokeWidth={1.2} className="group-hover:text-luxury-gold transition-colors" />
-            <span className="absolute -top-1 -right-1 bg-luxury-charcoal text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-sans">
-              0
-            </span>
+          <button className="relative group flex items-center gap-3">
+            <span className="hidden md:block text-[10px] uppercase tracking-[0.2em] font-light group-hover:text-luxury-gold transition-colors">Panier</span>
+            <div className="relative">
+              <ShoppingBag size={20} strokeWidth={1} className="group-hover:text-luxury-gold transition-colors" />
+              <span className="absolute -top-1.5 -right-1.5 bg-luxury-charcoal text-white text-[8px] w-4 h-4 flex items-center justify-center rounded-full font-sans">
+                0
+              </span>
+            </div>
           </button>
-          <button className="lg:hidden"><Menu size={24} /></button>
+          <button className="lg:hidden"><Menu size={20} strokeWidth={1} /></button>
         </div>
       </nav>
 
-      {/* HERO SECTION - CINEMATOGRAPHIC */}
+      {/* HERO SECTION - PARALLAX ÉDITORIAL */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-black/20 z-10" />
-        <img 
-          src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=2000&auto=format&fit=crop" 
-          className="absolute inset-0 w-full h-full object-cover scale-100 hover:scale-105 transition-transform duration-[10s]"
-          alt="Sacoche luxe artisanale"
-        />
-        <div className="relative z-20 text-center text-white px-6">
-          <p className="uppercase tracking-[0.5em] text-[10px] mb-8 animate-pulse font-sans">Maroquinerie d'exception</p>
-          <h1 className="text-5xl md:text-8xl font-serif font-light mb-12 leading-tight">
-            Redéfinir <br /> <span className="italic text-white/90">l'Unique</span>
-          </h1>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button className="bg-white text-luxury-charcoal px-12 py-5 text-[10px] uppercase tracking-widest hover:bg-luxury-charcoal hover:text-white transition-all duration-500">
-              Explorer le Store
-            </button>
-            <button className="backdrop-blur-sm bg-white/10 border border-white/30 text-white px-12 py-5 text-[10px] uppercase tracking-widest hover:bg-white hover:text-luxury-charcoal transition-all duration-500">
-              Concevoir mon sac
-            </button>
-          </div>
+        <div className="absolute inset-0 bg-black/30 z-10" />
+        
+        {/* L'image avec l'effet parallax */}
+        <div 
+          className="absolute inset-0 w-full h-full"
+          style={{ transform: `translateY(${scrollY * 0.4}px)` }}
+        >
+          <img 
+            src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=2000&auto=format&fit=crop" 
+            className="w-full h-full object-cover scale-110"
+            alt="Sacoche luxe artisanale"
+          />
         </div>
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center text-white/50 gap-2">
-          <span className="text-[9px] uppercase tracking-[0.3em]">Défiler</span>
-          <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent"></div>
+
+        <div className="relative z-20 text-center text-white px-6 w-full max-w-4xl mx-auto mt-20">
+          <Reveal delay={0}>
+            <p className="uppercase tracking-[0.4em] text-[9px] mb-8 font-sans opacity-90">Atelier de Haute Maroquinerie</p>
+          </Reveal>
+          
+          <Reveal delay={200}>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-light mb-12 leading-tight drop-shadow-sm">
+              L'Art de <span className="italic text-white/95">l'Unique</span>
+            </h1>
+          </Reveal>
+          
+          <Reveal delay={400}>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button 
+                onClick={() => scrollTo('store')}
+                className="bg-black/20 backdrop-blur-sm border border-white/50 text-white px-10 py-4 text-[9px] uppercase tracking-[0.2em] hover:bg-white hover:text-luxury-charcoal transition-all duration-500 w-64 sm:w-auto flex items-center justify-center gap-3 group"
+              >
+                Découvrir les pièces
+                <ArrowDown size={12} className="group-hover:translate-y-1 transition-transform" />
+              </button>
+              <button 
+                onClick={() => scrollTo('ia')}
+                className="bg-black/20 backdrop-blur-sm border border-white/50 text-white px-10 py-4 text-[9px] uppercase tracking-[0.2em] hover:bg-white hover:text-luxury-charcoal transition-all duration-500 w-64 sm:w-auto"
+              >
+                Créer sur mesure
+              </button>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* STORE SECTION - DYNAMIQUE */}
-      <section id="store" className="py-32 px-6 md:px-16 max-w-[1600px] mx-auto">
+      {/* STORE SECTION - ÉPURÉE AVEC RÉVÉLATION */}
+      <section id="store" className="py-24 md:py-32 px-6 md:px-24 max-w-7xl mx-auto bg-luxury-cream">
         <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
-          <div className="max-w-xl">
-            <h2 className="text-4xl md:text-6xl font-serif mb-6 leading-tight">La Collection <br /> <span className="text-luxury-gold italic">Signature</span></h2>
-            <p className="text-stone-500 font-light leading-relaxed">
-              Des pièces pensées pour durer, conçues avec Amélie dans notre atelier. 
-              Chaque cuir est sélectionné pour sa texture et sa patine future.
+          <Reveal className="max-w-lg">
+            <h2 className="text-3xl md:text-5xl font-serif mb-6 leading-tight font-light">
+              Collection <br /> <span className="text-luxury-gold italic">Intemporelle</span>
+            </h2>
+            <p className="text-stone-500 text-sm font-light leading-loose">
+              Façonnées à la main. Chaque cuir est sélectionné pour sa texture singulière et la promesse de sa patine future.
             </p>
-          </div>
-          <button className="text-[10px] uppercase tracking-widest border-b border-luxury-charcoal pb-2 hover:text-luxury-gold hover:border-luxury-gold transition-all font-medium">
-            Voir toute la sélection
-          </button>
+          </Reveal>
+          <Reveal delay={200}>
+            <button className="text-[9px] uppercase tracking-[0.2em] border-b border-stone-300 pb-2 hover:text-luxury-charcoal hover:border-luxury-charcoal transition-all font-light text-stone-500">
+              Explorer le catalogue
+            </button>
+          </Reveal>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
-          {products.map((p) => (
-            <div key={p.id} className="group">
-              <div className="relative aspect-[3/4] bg-stone-100 mb-8 overflow-hidden">
-                <img 
-                  src={p.image} 
-                  alt={p.name}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                />
-                <div className="absolute top-6 right-6">
-                  <span className="bg-white/90 backdrop-blur-sm px-4 py-2 text-[9px] uppercase tracking-widest font-medium">
-                    {p.tag}
-                  </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+          {products.map((p, index) => (
+            <Reveal key={p.id} delay={index * 200}>
+              <div className="group cursor-pointer">
+                <div className="relative aspect-[4/5] bg-transparent mb-6 overflow-hidden">
+                  <img 
+                    src={p.image} 
+                    alt={p.name}
+                    className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105"
+                  />
+                  <div className="absolute top-5 right-5">
+                    <span className="bg-black/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 text-[8px] uppercase tracking-[0.2em] font-light shadow-sm">
+                      {p.tag}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-luxury-charcoal/40 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end justify-center p-8">
+                     <button className="w-full bg-transparent border border-white text-white backdrop-blur-sm py-3.5 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-luxury-charcoal transition-colors duration-300 translate-y-2 group-hover:translate-y-0">
+                      Découvrir l'œuvre
+                     </button>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-luxury-charcoal/40 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center p-12">
-                   <button className="w-full bg-white py-4 text-[10px] uppercase tracking-widest font-bold translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                    Aperçu Rapide
-                   </button>
+                <div className="flex justify-between items-start px-1">
+                  <div>
+                    <p className="text-[8px] uppercase tracking-[0.2em] text-stone-400 mb-1.5">{p.category}</p>
+                    <h3 className="text-lg font-serif font-light">{p.name}</h3>
+                  </div>
+                  <p className="text-sm font-light text-stone-600 mt-1">{p.price}</p>
                 </div>
               </div>
-              <div className="flex justify-between items-center px-2">
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-stone-400 mb-1">{p.category}</p>
-                  <h3 className="text-xl font-serif">{p.name}</h3>
-                </div>
-                <p className="text-lg font-light">{p.price}</p>
-              </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* IA ATELIER - TEASER */}
-      <section id="ia" className="bg-luxury-charcoal text-white py-32 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-luxury-gold/5 to-transparent"></div>
+      <section id="ia" className="bg-luxury-charcoal text-white py-24 md:py-32 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-luxury-gold/5 to-transparent"></div>
         
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-          <div className="inline-block p-4 rounded-full border border-white/10 mb-10">
-            <Sparkles className="text-luxury-gold" size={32} />
-          </div>
-          <h2 className="text-4xl md:text-7xl font-serif mb-10 leading-tight">
-            L'Intelligence de <br /> votre <span className="italic text-luxury-gold">Imaginaire</span>
-          </h2>
-          <p className="text-stone-400 text-lg md:text-xl font-light mb-16 max-w-2xl mx-auto leading-relaxed">
-            Prochainement, notre algorithme de design génératif transformera vos mots en croquis de haute maroquinerie, prêts à être confectionnés par nos artisans.
-          </p>
-          <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-            <div className="flex -space-x-4">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="w-12 h-12 rounded-full border-2 border-luxury-charcoal bg-stone-800 overflow-hidden">
-                   <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="utilisateur" />
-                </div>
-              ))}
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+          <Reveal delay={0}>
+            <div className="inline-flex p-3 rounded-full border border-white/10 mb-8 hover:border-luxury-gold/50 transition-colors cursor-default">
+              <Sparkles className="text-luxury-gold animate-pulse" size={24} strokeWidth={1.5} />
             </div>
-            <p className="text-xs uppercase tracking-widest text-stone-500">
-              +450 personnes sur liste d'attente
+          </Reveal>
+          
+          <Reveal delay={100}>
+            <h2 className="text-3xl md:text-5xl lg:text-6xl font-serif mb-8 leading-tight font-light">
+              L'Intelligence au service <br /> de <span className="italic text-luxury-gold">votre Imaginaire</span>
+            </h2>
+          </Reveal>
+          
+          <Reveal delay={200}>
+            <p className="text-stone-400 text-sm md:text-base font-light mb-12 max-w-xl mx-auto leading-loose">
+              Bientôt, notre algorithme génératif transformera vos mots en croquis de haute maroquinerie, prêts à être façonnés par nos artisans.
             </p>
-            <button className="bg-luxury-gold text-white px-10 py-5 text-[10px] uppercase tracking-widest font-bold hover:bg-white hover:text-luxury-charcoal transition-all">
-              Rejoindre l'expérience
-            </button>
-          </div>
+          </Reveal>
+          
+          <Reveal delay={300}>
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+              <button className="bg-luxury-gold text-white px-8 py-4 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-luxury-charcoal transition-all duration-300 w-64 sm:w-auto">
+                Liste d'attente privilégiée
+              </button>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-light">
+                Déjà 450 inscrits
+              </p>
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="py-20 px-6 border-t border-stone-200">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+      <footer className="py-16 px-6 md:px-24 border-t border-stone-200 bg-white">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left">
-            <h4 className="text-2xl font-serif tracking-widest uppercase mb-4">Amélie Purtell</h4>
-            <p className="text-stone-400 text-[10px] uppercase tracking-widest font-sans">Atelier de création • Paris — Bordeaux</p>
+            <h4 className="text-xl font-serif tracking-[0.3em] uppercase mb-2">Amélie Purtell</h4>
+            <p className="text-stone-400 text-[9px] uppercase tracking-[0.2em] font-light">Atelier • Paris — Bordeaux</p>
           </div>
-          <div className="flex gap-12 text-[10px] uppercase tracking-widest font-medium">
-            <a href="#" className="hover:text-luxury-gold transition">Instagram</a>
-            <a href="#" className="hover:text-luxury-gold transition">Contact</a>
-            <a href="#" className="hover:text-luxury-gold transition">Paiement Sécurisé</a>
+          <div className="flex gap-8 text-[9px] uppercase tracking-[0.2em] font-light">
+            <a href="#" className="hover:text-luxury-gold transition-colors text-stone-600">Instagram</a>
+            <a href="#" className="hover:text-luxury-gold transition-colors text-stone-600">Contact</a>
+            <a href="#" className="hover:text-luxury-gold transition-colors text-stone-600">Mentions Légales</a>
           </div>
-          <p className="text-[10px] text-stone-400 uppercase tracking-widest">© 2024 — Maison Amélie Purtell</p>
+          <p className="text-[8px] text-stone-400 uppercase tracking-[0.2em]">© 2024 — Maison Amélie Purtell</p>
         </div>
       </footer>
     </div>
