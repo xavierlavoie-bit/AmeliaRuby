@@ -88,7 +88,7 @@ export default function App() {
       
       {/* HEADER NAVIGATION */}
       <nav className={`fixed w-full z-50 transition-all duration-700 px-6 md:px-24 flex justify-between items-center ${
-        scrolled ? 'bg-white/95 backdrop-blur-md py-5 shadow-sm' : 'bg-transparent py-8'
+        scrolled ? 'bg-white/95 backdrop-blur-md py-5 shadow-sm text-luxury-charcoal' : 'bg-transparent py-8 text-white'
       }`}>
         <div className="flex gap-12 text-[10px] uppercase tracking-[0.2em] hidden lg:flex font-light">
           <button onClick={() => scrollTo('store')} className="hover:text-luxury-gold transition-colors underline-offset-8 hover:underline uppercase tracking-[0.2em]">Collections</button>
@@ -108,7 +108,9 @@ export default function App() {
             <span className="hidden md:block text-[10px] uppercase tracking-[0.2em] font-light group-hover:text-luxury-gold transition-colors">Panier</span>
             <div className="relative">
               <ShoppingBag size={20} strokeWidth={1} className="group-hover:text-luxury-gold transition-colors" />
-              <span className="absolute -top-1.5 -right-1.5 bg-luxury-charcoal text-white text-[8px] w-4 h-4 flex items-center justify-center rounded-full font-sans">
+              <span className={`absolute -top-1.5 -right-1.5 text-[8px] w-4 h-4 flex items-center justify-center rounded-full font-sans transition-colors ${
+                scrolled ? 'bg-luxury-charcoal text-white' : 'bg-white text-luxury-charcoal'
+              }`}>
                 0
               </span>
             </div>
