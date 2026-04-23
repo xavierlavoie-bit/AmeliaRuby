@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// Initialisation de Stripe avec la clé secrète et la version spécifiée
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-03-25.dahlia' as any, // "as any" évite l'erreur TS si la version est trop récente pour les types installés
-});
-
 export async function POST(request: Request) {
   try {
+    // 1. Initialisation de Stripe À L'INTÉRIEUR de la fonction
+    // Cela empêche Next.js de chercher la clé pendant le build
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    
+    if (!stripeKey) {
+      console.error("ERREUR: STRIPE_SECRET_KEY manquante sur le serveur.");
+      return NextResponse.json({ error: "Configuration serveur incomplète." }, { status: 500 });
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2026-03-25.dahlia' as any,
+    });
+
+    // 2. Récupérer les informations envoyées par le client
     const body = await request.json();
     const { productId, price, name, image } = body;
 
@@ -17,9 +26,9 @@ export async function POST(request: Request) {
 
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-    // Création de la session en mode "Embedded" (Intégré)
+    // 3. Création de la session en mode "Embedded" (Intégré)
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded' as any, // "as any" corrige l'erreur de typage strict 'UiMode'
+      ui_mode: 'embedded' as any,
       payment_method_types: ['card'],
       line_items: [
         {
@@ -39,7 +48,7 @@ export async function POST(request: Request) {
       return_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     });
 
-    // On renvoie le secret client pour afficher le formulaire sur le frontend
+    // 4. On renvoie le secret client pour afficher le formulaire
     return NextResponse.json({ clientSecret: session.client_secret });
 
   } catch (error: any) {
