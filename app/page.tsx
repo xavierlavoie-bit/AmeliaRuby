@@ -3,12 +3,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, Sparkles, Menu, X, ArrowDown, Loader2, Lock } from 'lucide-react';
 
-import { loadStripe } from '@stripe/stripe-js';
-import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+// ============================================================================
+// INSTRUCTIONS POUR LE DÉVELOPPEMENT LOCAL (À DÉCOMMENTER)
+// ============================================================================
+// Pour activer la véritable intégration Stripe Embedded Checkout en local,
+// assurez-vous d'avoir exécuté : npm install @stripe/stripe-js @stripe/react-stripe-js
+// Puis décommentez les lignes suivantes :
+//
+// import { loadStripe } from '@stripe/stripe-js';
+// import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
+// const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+// ============================================================================
 
-
-// --- Simulation des données ---
+// --- Base de données simulée ---
 const products = [
   {
     id: 'prod_1',
@@ -39,8 +46,14 @@ const products = [
   }
 ];
 
-// --- Composant d'animation élégante au scroll ---
-const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
+// --- Composant d'animation élégante au scroll avec typage TypeScript ---
+interface RevealProps {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}
+
+const Reveal = ({ children, delay = 0, className = "" }: RevealProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,7 +62,7 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(entry.target);
+          if (ref.current) observer.unobserve(ref.current);
         }
       },
       { threshold: 0.1, rootMargin: "50px" }
@@ -73,11 +86,11 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   
-  // --- ÉTATS POUR LE PAIEMENT ---
+  // États pour le paiement (avec typage explicite <string | null>)
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  // --- INTÉGRATION STRIPE EMBEDDED ---
+  // Appel de la VRAIE API Stripe (Typage de 'product' avec typeof)
   const handleCheckout = async (product: typeof products[0]) => {
     try {
       setLoadingProduct(product.id);
@@ -85,21 +98,26 @@ export default function App() {
       // Simulation d'un délai réseau pour l'élégance de la démo
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Dans votre code réel, vous décommenterez ce bloc fetch vers votre API:
+      // Dans votre code réel (localement), vous décommenterez ce bloc fetch vers votre API:
       /*
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
-          price: product.price,
+          price: product.price, // Format nombre envoyé à l'API
           name: product.name,
           image: product.image,
         }),
       });
+      
       const data = await response.json();
+      
       if (data.clientSecret) {
-        setClientSecret(data.clientSecret);
+        setClientSecret(data.clientSecret); // Ouvre la modale avec le vrai formulaire
+      } else {
+        console.error("Erreur API:", data.error);
+        alert("Erreur avec le terminal de paiement. Vérifiez la console.");
       }
       */
       
@@ -124,6 +142,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Typage explicite de 'id' comme étant une chaîne de caractères
   const scrollTo = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -132,14 +151,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-luxury-cream text-luxury-charcoal selection:bg-luxury-gold selection:text-white">
+    <div className="min-h-screen bg-luxury-cream text-luxury-charcoal selection:bg-luxury-gold selection:text-white font-sans">
       
-      {/* MODALE DE PAIEMENT STRIPE */}
+      {/* VRAIE MODALE DE PAIEMENT STRIPE */}
       {clientSecret && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          {/* Fond flouté élégant */}
+          {/* Fond flouté élégant pour fermer la modale */}
           <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity"
+            className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity cursor-pointer"
             onClick={() => setClientSecret(null)}
           />
           
@@ -159,8 +178,8 @@ export default function App() {
               </button>
             </div>
             
-            {/* Formulaire Stripe Intégré */}
-            <div className="p-6 overflow-y-auto bg-stone-50/50 flex-grow min-h-[400px] flex items-center justify-center">
+            {/* Formulaire Stripe Intégré Réel */}
+            <div className="p-6 overflow-y-auto bg-stone-50 flex-grow min-h-[400px] flex items-center justify-center">
               
               {/* --- SIMULATION VISUELLE POUR LA DÉMO --- */}
               <div className="text-center text-stone-500 flex flex-col items-center">
@@ -176,7 +195,6 @@ export default function App() {
                 <EmbeddedCheckout />
               </EmbeddedCheckoutProvider> 
               */}
-              
             </div>
           </div>
         </div>
@@ -187,7 +205,7 @@ export default function App() {
         scrolled ? 'bg-white/95 backdrop-blur-md py-5 shadow-sm text-luxury-charcoal' : 'bg-transparent py-8 text-white'
       }`}>
         <div className="flex gap-12 text-[10px] uppercase tracking-[0.2em] hidden lg:flex font-light">
-          <button onClick={() => scrollTo('store')} className="hover:text-luxury-gold transition-colors underline-offset-8 hover:underline uppercase tracking-[0.2em]">Collections</button>
+          <button onClick={() => scrollTo('store')} className="hover:text-luxury-gold transition-colors underline-offset-8 hover:underline">Collections</button>
           <button onClick={() => scrollTo('ia')} className="hover:text-luxury-gold transition-colors flex items-center gap-2">
             <span className="flex items-center gap-2 italic font-serif lowercase tracking-normal text-[13px]">
               <Sparkles size={12} className="text-luxury-gold" /> l'atelier ia
@@ -215,7 +233,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* HERO SECTION */}
+      {/* HERO SECTION - PARALLAX ÉDITORIAL */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-black/30 z-10" />
         
@@ -283,30 +301,27 @@ export default function App() {
           {products.map((p, index) => (
             <Reveal key={p.id} delay={index * 200}>
               <div className="group">
-                <div className="relative aspect-[4/5] bg-transparent mb-6 overflow-hidden">
+                <div className="relative aspect-[4/5] bg-stone-100 mb-6 overflow-hidden">
                   <img 
                     src={p.image} 
                     alt={p.name}
                     className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105"
                   />
                   <div className="absolute top-5 right-5">
-                    <span className="bg-black/20 backdrop-blur-md border border-white/30 text-white px-3 py-1.5 text-[8px] uppercase tracking-[0.2em] font-light shadow-sm">
+                    <span className="bg-white/95 px-3 py-1.5 text-[8px] uppercase tracking-[0.2em] font-light text-luxury-charcoal shadow-sm">
                       {p.tag}
                     </span>
                   </div>
                   
-                  {/* BOUTON D'ACHAT STRIPE */}
-                  <div className="absolute inset-0 bg-luxury-charcoal/40 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end justify-center p-8">
+                  {/* BOUTON D'ACHAT STRIPE MODIFIÉ */}
+                  <div className="absolute inset-0 bg-luxury-charcoal/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end justify-center p-8">
                      <button 
                       onClick={() => handleCheckout(p)}
                       disabled={loadingProduct === p.id}
-                      className="w-full bg-transparent border border-white text-white backdrop-blur-sm py-3.5 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-luxury-charcoal transition-colors duration-300 translate-y-2 group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-2"
+                      className="w-full bg-white text-luxury-charcoal py-3.5 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-luxury-charcoal hover:text-white transition-colors duration-300 translate-y-2 group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-wait flex justify-center items-center gap-2"
                      >
                       {loadingProduct === p.id ? (
-                        <>
-                          <Loader2 size={12} className="animate-spin" />
-                          Sécurisation...
-                        </>
+                        <><Loader2 size={12} className="animate-spin text-luxury-gold" /> Sécurisation...</>
                       ) : (
                         "Acquérir l'œuvre"
                       )}
