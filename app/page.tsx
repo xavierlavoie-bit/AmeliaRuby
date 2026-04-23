@@ -3,17 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, Sparkles, Menu, X, ArrowDown, Loader2, Lock } from 'lucide-react';
 
-// ============================================================================
-// INSTRUCTIONS POUR LE DÉVELOPPEMENT LOCAL (À DÉCOMMENTER)
-// ============================================================================
-// Pour activer la véritable intégration Stripe Embedded Checkout en local,
-// assurez-vous d'avoir exécuté : npm install @stripe/stripe-js @stripe/react-stripe-js
-// Puis décommentez les lignes suivantes :
-//
-// import { loadStripe } from '@stripe/stripe-js';
-// import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
-// const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
-// ============================================================================
+// --- IMPORTATIONS STRIPE RÉELLES ---
+import { loadStripe } from '@stripe/stripe-js';
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
+
+// Initialisation de Stripe (Assure-toi que ton serveur est bien redémarré si tu viens d'ajouter la clé)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
 // --- Base de données simulée ---
 const products = [
@@ -46,7 +41,7 @@ const products = [
   }
 ];
 
-// --- Composant d'animation élégante au scroll avec typage TypeScript ---
+// --- Composant d'animation élégante au scroll ---
 interface RevealProps {
   children: React.ReactNode;
   delay?: number;
@@ -86,20 +81,15 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   
-  // États pour le paiement (avec typage explicite <string | null>)
+  // États pour le paiement
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  // Appel de la VRAIE API Stripe (Typage de 'product' avec typeof)
+  // --- APPEL DE LA VRAIE API STRIPE ---
   const handleCheckout = async (product: typeof products[0]) => {
     try {
       setLoadingProduct(product.id);
       
-      // Simulation d'un délai réseau pour l'élégance de la démo
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Dans votre code réel (localement), vous décommenterez ce bloc fetch vers votre API:
-      /*
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,15 +104,11 @@ export default function App() {
       const data = await response.json();
       
       if (data.clientSecret) {
-        setClientSecret(data.clientSecret); // Ouvre la modale avec le vrai formulaire
+        setClientSecret(data.clientSecret); // Ouvre la modale avec le VRAI formulaire
       } else {
         console.error("Erreur API:", data.error);
-        alert("Erreur avec le terminal de paiement. Vérifiez la console.");
+        alert("Erreur de paiement. Vérifiez la console.");
       }
-      */
-      
-      // Pour la démo visuelle du Canvas, on force l'ouverture de la modale
-      setClientSecret("simulated_secret_for_demo");
 
     } catch (error) {
       console.error("Erreur réseau:", error);
@@ -142,7 +128,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Typage explicite de 'id' comme étant une chaîne de caractères
   const scrollTo = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -179,22 +164,10 @@ export default function App() {
             </div>
             
             {/* Formulaire Stripe Intégré Réel */}
-            <div className="p-6 overflow-y-auto bg-stone-50 flex-grow min-h-[400px] flex items-center justify-center">
-              
-              {/* --- SIMULATION VISUELLE POUR LA DÉMO --- */}
-              <div className="text-center text-stone-500 flex flex-col items-center">
-                <Loader2 className="animate-spin mb-6 text-luxury-gold" size={32} />
-                <p className="font-serif text-xl text-luxury-charcoal mb-2">Interface Stripe Sécurisée</p>
-                <p className="text-sm font-light max-w-md">
-                  Le module Stripe Embedded Checkout s'affichera ici dans votre environnement local une fois les packages Stripe installés et décommentés.
-                </p>
-              </div>
-
-              {/* --- CODE RÉEL À DÉCOMMENTER EN LOCAL --- */}
-              {/* <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+            <div className="p-6 overflow-y-auto bg-stone-50 flex-grow min-h-[400px]">
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
                 <EmbeddedCheckout />
-              </EmbeddedCheckoutProvider> 
-              */}
+              </EmbeddedCheckoutProvider>
             </div>
           </div>
         </div>
@@ -233,7 +206,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* HERO SECTION - PARALLAX ÉDITORIAL */}
+      {/* HERO SECTION */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-black/30 z-10" />
         
@@ -279,7 +252,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* STORE SECTION - AVEC BOUTON D'ACHAT STRIPE */}
+      {/* STORE SECTION */}
       <section id="store" className="py-24 md:py-32 px-6 md:px-24 max-w-7xl mx-auto bg-luxury-cream">
         <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
           <Reveal className="max-w-lg">
@@ -313,7 +286,7 @@ export default function App() {
                     </span>
                   </div>
                   
-                  {/* BOUTON D'ACHAT STRIPE MODIFIÉ */}
+                  {/* BOUTON D'ACHAT STRIPE */}
                   <div className="absolute inset-0 bg-luxury-charcoal/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end justify-center p-8">
                      <button 
                       onClick={() => handleCheckout(p)}

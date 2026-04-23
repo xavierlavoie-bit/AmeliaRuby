@@ -3,8 +3,6 @@ import Stripe from 'stripe';
 
 export async function POST(request: Request) {
   try {
-    // 1. Initialisation de Stripe À L'INTÉRIEUR de la fonction
-    // Cela empêche Next.js de chercher la clé pendant le build
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     
     if (!stripeKey) {
@@ -16,7 +14,6 @@ export async function POST(request: Request) {
       apiVersion: '2026-03-25.dahlia' as any,
     });
 
-    // 2. Récupérer les informations envoyées par le client
     const body = await request.json();
     const { productId, price, name, image } = body;
 
@@ -26,9 +23,9 @@ export async function POST(request: Request) {
 
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-    // 3. Création de la session en mode "Embedded" (Intégré)
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded' as any,
+      // LA CORRECTION EST ICI : on utilise 'embedded_page'
+      ui_mode: 'embedded_page' as any,
       payment_method_types: ['card'],
       line_items: [
         {
@@ -48,7 +45,6 @@ export async function POST(request: Request) {
       return_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     });
 
-    // 4. On renvoie le secret client pour afficher le formulaire
     return NextResponse.json({ clientSecret: session.client_secret });
 
   } catch (error: any) {
