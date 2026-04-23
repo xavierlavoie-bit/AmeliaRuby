@@ -1,14 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, Sparkles, Menu, X, ArrowDown } from 'lucide-react';
+import { ShoppingBag, Sparkles, Menu, X, ArrowDown, Loader2, Lock } from 'lucide-react';
 
-// --- Simulation des données Stripe ---
+import { loadStripe } from '@stripe/stripe-js';
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+
+
+// --- Simulation des données ---
 const products = [
   {
     id: 'prod_1',
     name: "L'Héritage N.1",
-    price: "1 850 €",
+    price: 1850,
+    displayPrice: "1 850 $",
     image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=1200&auto=format&fit=crop",
     category: "Sac sur mesure",
     tag: "Signature"
@@ -16,7 +22,8 @@ const products = [
   {
     id: 'prod_2',
     name: "La Pochette Étoile",
-    price: "920 €",
+    price: 920,
+    displayPrice: "920 $",
     image: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?q=80&w=1200&auto=format&fit=crop",
     category: "Accessoires",
     tag: "Série Limitée"
@@ -24,7 +31,8 @@ const products = [
   {
     id: 'prod_3',
     name: "Le Cabas Horizon",
-    price: "2 100 €",
+    price: 2100,
+    displayPrice: "2 100 $",
     image: "https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=1200&auto=format&fit=crop",
     category: "Saison",
     tag: "Pièce Unique"
@@ -41,7 +49,7 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(entry.target); // S'anime une seule fois
+          observer.unobserve(entry.target);
         }
       },
       { threshold: 0.1, rootMargin: "50px" }
@@ -64,8 +72,49 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  
+  // --- ÉTATS POUR LE PAIEMENT ---
+  const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  // Gestion du scroll pour la navbar ET l'effet parallax
+  // --- INTÉGRATION STRIPE EMBEDDED ---
+  const handleCheckout = async (product: typeof products[0]) => {
+    try {
+      setLoadingProduct(product.id);
+      
+      // Simulation d'un délai réseau pour l'élégance de la démo
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Dans votre code réel, vous décommenterez ce bloc fetch vers votre API:
+      /*
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          price: product.price,
+          name: product.name,
+          image: product.image,
+        }),
+      });
+      const data = await response.json();
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+      }
+      */
+      
+      // Pour la démo visuelle du Canvas, on force l'ouverture de la modale
+      setClientSecret("simulated_secret_for_demo");
+
+    } catch (error) {
+      console.error("Erreur réseau:", error);
+      alert("Erreur de connexion. Veuillez réessayer.");
+    } finally {
+      setLoadingProduct(null);
+    }
+  };
+
+  // Gestion du scroll
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -75,7 +124,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fonction de défilement doux
   const scrollTo = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -86,6 +134,54 @@ export default function App() {
   return (
     <div className="min-h-screen bg-luxury-cream text-luxury-charcoal selection:bg-luxury-gold selection:text-white">
       
+      {/* MODALE DE PAIEMENT STRIPE */}
+      {clientSecret && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          {/* Fond flouté élégant */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity"
+            onClick={() => setClientSecret(null)}
+          />
+          
+          {/* Conteneur du formulaire */}
+          <div className="relative w-full max-w-2xl bg-white rounded-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-300">
+            {/* Header de la modale */}
+            <div className="flex justify-between items-center p-6 border-b border-stone-100">
+              <div className="flex items-center gap-3">
+                <Lock size={16} className="text-luxury-gold" />
+                <h3 className="font-serif text-lg md:text-xl tracking-widest uppercase">Paiement Sécurisé</h3>
+              </div>
+              <button 
+                onClick={() => setClientSecret(null)}
+                className="text-stone-400 hover:text-luxury-charcoal transition-colors p-2"
+              >
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+            
+            {/* Formulaire Stripe Intégré */}
+            <div className="p-6 overflow-y-auto bg-stone-50/50 flex-grow min-h-[400px] flex items-center justify-center">
+              
+              {/* --- SIMULATION VISUELLE POUR LA DÉMO --- */}
+              <div className="text-center text-stone-500 flex flex-col items-center">
+                <Loader2 className="animate-spin mb-6 text-luxury-gold" size={32} />
+                <p className="font-serif text-xl text-luxury-charcoal mb-2">Interface Stripe Sécurisée</p>
+                <p className="text-sm font-light max-w-md">
+                  Le module Stripe Embedded Checkout s'affichera ici dans votre environnement local une fois les packages Stripe installés et décommentés.
+                </p>
+              </div>
+
+              {/* --- CODE RÉEL À DÉCOMMENTER EN LOCAL --- */}
+              {/* <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider> 
+              */}
+              
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER NAVIGATION */}
       <nav className={`fixed w-full z-50 transition-all duration-700 px-6 md:px-24 flex justify-between items-center ${
         scrolled ? 'bg-white/95 backdrop-blur-md py-5 shadow-sm text-luxury-charcoal' : 'bg-transparent py-8 text-white'
@@ -119,11 +215,10 @@ export default function App() {
         </div>
       </nav>
 
-      {/* HERO SECTION - PARALLAX ÉDITORIAL */}
+      {/* HERO SECTION */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-black/30 z-10" />
         
-        {/* L'image avec l'effet parallax */}
         <div 
           className="absolute inset-0 w-full h-full"
           style={{ transform: `translateY(${scrollY * 0.4}px)` }}
@@ -166,7 +261,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* STORE SECTION - ÉPURÉE AVEC RÉVÉLATION */}
+      {/* STORE SECTION - AVEC BOUTON D'ACHAT STRIPE */}
       <section id="store" className="py-24 md:py-32 px-6 md:px-24 max-w-7xl mx-auto bg-luxury-cream">
         <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
           <Reveal className="max-w-lg">
@@ -187,7 +282,7 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
           {products.map((p, index) => (
             <Reveal key={p.id} delay={index * 200}>
-              <div className="group cursor-pointer">
+              <div className="group">
                 <div className="relative aspect-[4/5] bg-transparent mb-6 overflow-hidden">
                   <img 
                     src={p.image} 
@@ -199,9 +294,22 @@ export default function App() {
                       {p.tag}
                     </span>
                   </div>
+                  
+                  {/* BOUTON D'ACHAT STRIPE */}
                   <div className="absolute inset-0 bg-luxury-charcoal/40 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end justify-center p-8">
-                     <button className="w-full bg-transparent border border-white text-white backdrop-blur-sm py-3.5 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-luxury-charcoal transition-colors duration-300 translate-y-2 group-hover:translate-y-0">
-                      Découvrir l'œuvre
+                     <button 
+                      onClick={() => handleCheckout(p)}
+                      disabled={loadingProduct === p.id}
+                      className="w-full bg-transparent border border-white text-white backdrop-blur-sm py-3.5 text-[9px] uppercase tracking-[0.2em] font-medium hover:bg-white hover:text-luxury-charcoal transition-colors duration-300 translate-y-2 group-hover:translate-y-0 disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-2"
+                     >
+                      {loadingProduct === p.id ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          Sécurisation...
+                        </>
+                      ) : (
+                        "Acquérir l'œuvre"
+                      )}
                      </button>
                   </div>
                 </div>
@@ -210,7 +318,7 @@ export default function App() {
                     <p className="text-[8px] uppercase tracking-[0.2em] text-stone-400 mb-1.5">{p.category}</p>
                     <h3 className="text-lg font-serif font-light">{p.name}</h3>
                   </div>
-                  <p className="text-sm font-light text-stone-600 mt-1">{p.price}</p>
+                  <p className="text-sm font-light text-stone-600 mt-1">{p.displayPrice}</p>
                 </div>
               </div>
             </Reveal>
