@@ -15,33 +15,61 @@ export async function POST(request: Request) {
     });
 
     const body = await request.json();
-    const { productId, price, name, image } = body;
+    const { items } = body;
 
-    if (!productId || !price || !name) {
-      return NextResponse.json({ error: "Informations manquantes." }, { status: 400 });
+    if (!items || items.length === 0) {
+      return NextResponse.json({ error: "Le panier est vide." }, { status: 400 });
     }
 
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
+    // Création d'une description claire pour le tableau de bord Stripe de la cliente
+    const orderDescription = items.map((i: any) => `${i.quantity}x ${i.name}`).join(', ');
+
+    // Création des articles formatés pour Stripe "à la volée"
+    const line_items = items.map((item: any) => ({
+      price_data: {
+        currency: 'cad', // Devise en dollars canadiens
+        product_data: {
+          name: item.name,
+        },
+        unit_amount: Math.round(item.price * 100),
+      },
+      quantity: item.quantity,
+    }));
+
     const session = await stripe.checkout.sessions.create({
-      // LA CORRECTION EST ICI : on utilise 'embedded_page'
       ui_mode: 'embedded_page' as any,
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'cad',
-            product_data: {
-              name: name,
-              images: image ? [image] : [],
-              description: 'Haute Maroquinerie - Maison Amélie Purtell',
-            },
-            unit_amount: Math.round(price * 100), 
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: line_items,
       mode: 'payment',
+      
+      // NOUVEAU: Ajoute le nom du produit directement dans la liste des paiements Stripe !
+      payment_intent_data: {
+        description: `Commande: ${orderDescription}`,
+        metadata: {
+          produits: orderDescription
+        }
+      },
+      
+      // Demander l'adresse de livraison
+      shipping_address_collection: {
+        allowed_countries: ['CA', 'US', 'FR', 'BE', 'CH'], // Remplace ou ajoute des codes ISO de pays si besoin
+      },
+      
+      // Demander le numéro de téléphone (très utile pour FedEx, UPS, etc.)
+      phone_number_collection: {
+        enabled: true,
+      },
+
+      // Créer automatiquement une facture professionnelle PDF
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: `Merci pour votre commande chez Maison Amélie Purtell. Détails : ${orderDescription}`,
+        }
+      },
+      
       return_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     });
 
@@ -49,9 +77,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Erreur Stripe:", error);
-    return NextResponse.json(
-      { error: "Erreur lors de l'initialisation du paiement." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

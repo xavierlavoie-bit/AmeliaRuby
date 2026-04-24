@@ -11,6 +11,7 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^6.2.0",
     "@stripe/stripe-js": "^9.3.0",
+    "firebase": "^12.12.1",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "postcss": "^8.5.10",
