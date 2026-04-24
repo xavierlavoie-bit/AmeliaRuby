@@ -19,13 +19,13 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 declare const __initial_auth_token: any;
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCl-BWuBSz3aW5Ugc2aU2ZfZlgMGx6PrEM",
-  authDomain: "ameliaruby-73db2.firebaseapp.com",
-  projectId: "ameliaruby-73db2",
-  storageBucket: "ameliaruby-73db2.firebasestorage.app",
-  messagingSenderId: "750215903769",
-  appId: "1:750215903769:web:361028af7da1fe7109c888",
-  measurementId: "G-0LNYMNCWNZ"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || ""
 };
 
 // Initialisation Firebase
