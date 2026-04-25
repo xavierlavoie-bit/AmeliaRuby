@@ -9,14 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@stripe/react-stripe-js": "^6.2.0",
     "@stripe/stripe-js": "^9.3.0",
     "firebase": "^12.12.1",
+    "firebase-admin": "^13.8.0",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "postcss": "^8.5.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.12.2",
     "stripe": "^22.0.2"
   },
   "devDependencies": {

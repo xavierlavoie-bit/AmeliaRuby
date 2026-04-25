@@ -51,6 +51,13 @@ export async function POST(request: Request) {
           produits: orderDescription
         }
       },
+
+      // 👇 LA CORRECTION CRUCIALE EST ICI 👇
+      // Ces métadonnées sont attachées à la Session pour que le Webhook puisse les lire !
+      metadata: {
+        produits: orderDescription
+      },
+      // 👆 👆 👆
       
       // Demander l'adresse de livraison
       shipping_address_collection: {
