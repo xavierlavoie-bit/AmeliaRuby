@@ -44,7 +44,7 @@ const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); }
@@ -52,12 +52,68 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
-  
+
   return (
     <div ref={ref} className={`transition-all duration-[1200ms] ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );
+};
+
+// --- CURSEUR CUSTOM DORÉ ---
+const CustomCursor = () => {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let mx = 0, my = 0, cx = 0, cy = 0, id: number;
+    const move = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    window.addEventListener('mousemove', move);
+    const tick = () => {
+      cx += (mx - cx) * 0.12; cy += (my - cy) * 0.12;
+      if (outerRef.current) outerRef.current.style.transform = `translate(${cx - 20}px,${cy - 20}px)`;
+      if (dotRef.current) dotRef.current.style.transform = `translate(${mx - 3}px,${my - 3}px)`;
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => { window.removeEventListener('mousemove', move); cancelAnimationFrame(id); };
+  }, []);
+  return (
+    <>
+      <div ref={outerRef} className="fixed top-0 left-0 z-[9999] pointer-events-none will-change-transform hidden md:block" style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(197,160,89,0.5)' }} />
+      <div ref={dotRef} className="fixed top-0 left-0 z-[9999] pointer-events-none will-change-transform hidden md:block" style={{ width: 6, height: 6, borderRadius: '50%', background: '#C5A059' }} />
+    </>
+  );
+};
+
+// --- COMPTEUR ANIMÉ ---
+const StatCounter = ({ target, suffix = '' }: { target: number; suffix?: string }) => {
+  const [val, setVal] = useState(0);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return; obs.disconnect();
+      const t0 = Date.now(), dur = 2200;
+      const run = () => { const p = Math.min((Date.now() - t0) / dur, 1); setVal(Math.round((1 - Math.pow(1 - p, 4)) * target)); if (p < 1) requestAnimationFrame(run); };
+      requestAnimationFrame(run);
+    }, { threshold: 0.5 });
+    if (spanRef.current) obs.observe(spanRef.current);
+    return () => obs.disconnect();
+  }, [target]);
+  return <span ref={spanRef}>{val}{suffix}</span>;
+};
+
+// --- CARTE TILT 3D ---
+const TiltCard = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const onMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const { left, top, width, height } = ref.current.getBoundingClientRect();
+    const x = ((e.clientX - left) / width - 0.5) * 12;
+    const y = ((e.clientY - top) / height - 0.5) * -12;
+    ref.current.style.transform = `perspective(900px) rotateX(${y}deg) rotateY(${x}deg) scale3d(1.02,1.02,1.02)`;
+  };
+  const onLeave = () => { if (ref.current) ref.current.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)'; };
+  return <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} className={`transition-transform duration-500 ease-out ${className}`} style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}>{children}</div>;
 };
 
 // --- FONCTION UTILITAIRE POUR APPELS API AVEC RETRY ---
@@ -78,6 +134,8 @@ const fetchWithBackoff = async (url: string, options: any, retries = 5, delay = 
   }
 };
 
+const heroImages = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
+
 export default function App() {
   // États Globaux
   const [view, setView] = useState<'shop' | 'admin'>('shop');
@@ -93,6 +151,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [stripe, setStripe] = useState<any>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(0);
   
   // États Boutique
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
@@ -107,14 +167,17 @@ export default function App() {
   // États Admin - Produit
   const [isEditing, setIsEditing] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[]
+    name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[],
+    stockQuantity: 1, showFomo: false // NOUVEAU: Gestion des stocks
   });
 
   // États Admin - Suivi
-  const [trackingForm, setTrackingForm] = useState({ 
-    email: '', name: '', carrier: 'Poste Canada', trackingNumber: '', commandeId: '', produits: '' 
+  const [trackingForm, setTrackingForm] = useState({
+    email: '', name: '', carrier: 'Poste Canada', trackingNumber: '', commandeId: '', produits: ''
   });
+  const [clientSearch, setClientSearch] = useState('');
   const [isSendingTracking, setIsSendingTracking] = useState(false);
   const [trackingStatus, setTrackingStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -128,9 +191,20 @@ export default function App() {
 
   // Gestion du scroll pour la nav
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 50);
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(total > 0 ? (y / total) * 100 : 0);
+    };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Slideshow hero
+  useEffect(() => {
+    const t = setInterval(() => setHeroIndex(i => (i + 1) % heroImages.length), 5500);
+    return () => clearInterval(t);
   }, []);
 
   const scrollToSection = (id: string) => {
@@ -190,12 +264,12 @@ export default function App() {
       setIsLoading(false);
     });
 
-    // Clients
-    const qClients = collection(db, 'artifacts', appId, 'users', user.uid, 'clients');
+    // Clients (collection racine, écrite par le webhook Stripe)
+    const qClients = collection(db, 'clients');
     const unsubClients = onSnapshot(qClients, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClients(data);
-    }, (err) => console.warn("Note: Collection 'clients' non encore créée."));
+    }, (err) => console.warn("Clients:", err));
 
     // Historique des suivis expédiés
     const qTrackings = collection(db, 'artifacts', appId, 'public', 'data', 'trackings');
@@ -231,9 +305,23 @@ export default function App() {
 
   // --- LOGIQUE PANIER ---
   const addToCart = (product: any) => {
+    // Vérification du stock
+    const isSoldOut = product.stockQuantity !== undefined && product.stockQuantity <= 0;
+    if (isSoldOut) {
+      alert("Victime de son succès, cette pièce est malheureusement épuisée.");
+      return;
+    }
+
     const productColors = product.colors ? product.colors.split(',').map((c:string) => c.trim()).filter(Boolean) : [];
     if (productColors.length > 0 && !selectedColor) {
       alert("Veuillez sélectionner une couleur.");
+      return;
+    }
+
+    // Vérifier que l'ajout ne dépasse pas le stock global pour ce modèle
+    const currentCartQtyForProduct = cart.filter(i => i.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+    if (product.stockQuantity !== undefined && currentCartQtyForProduct >= product.stockQuantity) {
+      alert(`Notre atelier ne dispose plus que de ${product.stockQuantity} exemplaire(s) de cette pièce.`);
       return;
     }
 
@@ -252,7 +340,21 @@ export default function App() {
   };
 
   const updateQty = (cartItemId: string, delta: number) => {
-    setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
+    setCart(prev => {
+      const item = prev.find(i => i.cartItemId === cartItemId);
+      if(!item) return prev;
+
+      // Si on augmente, vérifier la limite globale pour ce produit
+      if (delta > 0 && item.stockQuantity !== undefined) {
+          const currentCartQtyForProduct = prev.filter(i => i.id === item.id).reduce((sum, i) => sum + i.quantity, 0);
+          if (currentCartQtyForProduct >= item.stockQuantity) {
+              alert(`Limite de stock atteinte (${item.stockQuantity} pièce(s) disponible(s)).`);
+              return prev;
+          }
+      }
+
+      return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i);
+    });
   };
 
   const removeItem = (cartItemId: string) => setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
@@ -267,6 +369,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           items: cart.map(i => ({ 
+            id: i.id, // <-- AJOUT DE L'ID ICI POUR LE WEBHOOK
             name: i.selectedColor ? `${i.name} (${i.selectedColor})` : i.name, 
             price: i.price, 
             quantity: i.quantity 
@@ -358,7 +461,7 @@ export default function App() {
         setIsEditing(null);
       } else {
         await addDoc(colRef, { ...newProduct, createdAt: Date.now() });
-        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[] });
+        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false });
       }
     } catch (err) { console.error("Save error", err); }
   };
@@ -376,14 +479,32 @@ export default function App() {
     setIsSendingTracking(true);
     setTrackingStatus('idle');
     try {
+      // 1. Envoyer le courriel via SendGrid
+      const res = await fetch('/api/tracking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trackingForm.email,
+          name: trackingForm.name,
+          carrier: trackingForm.carrier,
+          trackingNumber: trackingForm.trackingNumber,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur envoi courriel');
+      }
+
+      // 2. Sauvegarder dans l'historique Firestore
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'trackings'), {
         ...trackingForm,
         date: new Date().toISOString()
       });
 
+      // 3. Mettre à jour le statut du client
       const clientToUpdate = clients.find(c => c.id === trackingForm.commandeId);
       if (clientToUpdate) {
-        await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'clients', clientToUpdate.id), {
+        await updateDoc(doc(db, 'clients', clientToUpdate.id), {
           statut: 'Expédié',
           trackingNumber: trackingForm.trackingNumber,
           dateExpedition: new Date().toISOString()
@@ -393,10 +514,11 @@ export default function App() {
       setTrackingStatus('success');
       setTrackingForm({ ...trackingForm, trackingNumber: '', commandeId: '', produits: '' });
       setTimeout(() => setTrackingStatus('idle'), 3000);
-    } catch (e) { 
-      setTrackingStatus('error'); 
-    } finally { 
-      setIsSendingTracking(false); 
+    } catch (err) {
+      console.error('Erreur tracking:', err);
+      setTrackingStatus('error');
+    } finally {
+      setIsSendingTracking(false);
     }
   };
 
@@ -427,21 +549,24 @@ export default function App() {
     setChatMessages(prev => [...prev, { role: 'user', type: 'text', content: userMessage }]);
     setIsGeneratingImage(true);
 
-    // UX PRODUCTION : On compile l'historique non pas comme une contrainte stricte ("copie l'image"), 
-    // mais comme un "Cahier des charges" global pour inspirer la prochaine esquisse.
     const allUserRequests = chatMessages
       .filter(m => m.role === 'user')
       .map(m => m.content);
-    allUserRequests.push(userMessage); // On ajoute la dernière requête
+    allUserRequests.push(userMessage);
 
     const designBrief = allUserRequests.join(" | ");
+    const safePrompt = `Luxury fashion editorial product photography. A single bespoke artisan leather creation, custom-designed for a client of the Amelia Ruby atelier. This is a dream bag visualization — the design, colors, materials, and details are entirely defined by the client brief below.
 
-    // PROMPT D'INSPIRATION HAUT DE GAMME ET FLEXIBLE : 
-    // Ajusté pour générer N'IMPORTE QUEL accessoire de maroquinerie (sac, banane, étui, pochette, lunchbox...)
-    const safePrompt = `High-end luxury editorial photography of a bespoke artisan leather creation. The item can be a handbag, bumbag, fanny pack, laptop sleeve, lunch bag, pouch, wallet, or any custom leather accessory requested. Masterpiece, ultra-chic, sophisticated, haute couture. Highly detailed textures. Soft dramatic studio lighting, ultra-high definition, photorealistic macro details.
-    STRICT RULES: Original avant-garde design. ZERO logos. ZERO monograms. ZERO text. ZERO watermarks. ZERO resolution badges. Do not mimic Chanel, Hermes, LV, or Gucci. 
-    CLIENT DESIGN BRIEF: "${designBrief}". 
-    Carefully read the client brief to determine the exact TYPE of item requested. Combine their ideas into a single, cohesive, beautiful luxury piece. The aesthetic must be minimalist, elegant, flawless craftsmanship. Placed on a chic, muted neutral museum plinth background.`;
+PHOTOGRAPHY STYLE: High-end studio shot, Chanel / Bottega Veneta editorial level. Rembrandt lighting from upper-left, soft fill light from right. Pure white seamless background. Camera angle: 3/4 elevated view showing front and one side. Macro-sharp focus on leather grain, stitching, and hardware. Shallow depth of field on background. Photorealistic, medium format camera quality.
+
+BRANDING — MANDATORY: The bag must display the "AR" monogram in TWO ways: (1) A small debossed "AR" lettermark pressed directly into the leather on the front center panel — elegant blind embossing, same color as the leather, subtle but visible. (2) A small polished gold metal charm or plate engraved with "AR" attached to a zipper pull, D-ring, or strap hardware. Both brand marks must be clearly legible and look like a real luxury house signature.
+
+CRAFTSMANSHIP DNA: Artisan atelier quality. Fine hand-stitching. Premium hardware (gold, silver, aged brass, or as requested). Structured or supple silhouette depending on the brief.
+
+STRICT RULES: No watermarks, no resolution badges, no other brand names. Do not replicate exact silhouettes of Chanel, Hermès, Louis Vuitton, or Gucci — original design only.
+
+CLIENT DESIGN BRIEF: "${designBrief}".
+This brief defines EVERYTHING: the item type, colors, materials, textures, hardware finish, style, mood. Read it carefully and translate it into one single, cohesive, breathtaking luxury piece. Make it look real, handcrafted, and utterly desirable.`;
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
@@ -488,7 +613,6 @@ export default function App() {
     }
   };
 
-  // --- GESTION DU TÉLÉCHARGEMENT DE L'IMAGE ---
   const handleDownloadImage = () => {
     if (!latestImage) return;
     const a = document.createElement('a');
@@ -599,6 +723,36 @@ export default function App() {
                        className="w-full border-b py-2 focus:border-[#C5A059] outline-none font-light"
                      />
                    </div>
+
+                   {/* GESTION DE L'INVENTAIRE ET FOMO */}
+                   <div className="grid grid-cols-2 gap-4 pt-2 border-t border-stone-50 border-b pb-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Quantité en stock</label>
+                        <input 
+                          type="number" placeholder="Stock" min="0" required
+                          value={isEditing ? isEditing.stockQuantity : newProduct.stockQuantity}
+                          onChange={e => {
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                            isEditing ? setIsEditing({...isEditing, stockQuantity: val}) : setNewProduct({...newProduct, stockQuantity: val});
+                          }}
+                          className="w-full border-b py-1 focus:border-[#C5A059] outline-none font-light"
+                        />
+                      </div>
+                      <div className="flex items-end pb-1">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <div className={`w-4 h-4 border flex items-center justify-center transition-colors ${ (isEditing ? isEditing.showFomo : newProduct.showFomo) ? 'bg-[#C5A059] border-[#C5A059]' : 'border-stone-300 group-hover:border-[#C5A059]'}`}>
+                              {(isEditing ? isEditing.showFomo : newProduct.showFomo) && <CheckCircle2 size={12} className="text-white"/>}
+                          </div>
+                          <span className="text-[9px] uppercase tracking-[0.2em] text-stone-500 group-hover:text-black transition-colors">Créer l'urgence (FOMO)</span>
+                          <input 
+                            type="checkbox" className="hidden"
+                            checked={isEditing ? isEditing.showFomo : newProduct.showFomo}
+                            onChange={e => isEditing ? setIsEditing({...isEditing, showFomo: e.target.checked}) : setNewProduct({...newProduct, showFomo: e.target.checked})}
+                          />
+                        </label>
+                      </div>
+                   </div>
+
                    <input 
                      type="text" placeholder="Couleurs (ex: Noir, Camel, Nude)"
                      value={isEditing ? isEditing.colors : newProduct.colors}
@@ -613,7 +767,24 @@ export default function App() {
                    />
                    <div className="space-y-2">
                      <label className="text-[10px] uppercase tracking-widest text-[#C5A059] font-bold">Photos</label>
-                     <input type="file" multiple onChange={handleFileChange} className="text-[10px]" accept="image/*" />
+                     <div
+                       onDrop={(e) => { setIsDragging(false); handleFileChange(e); }}
+                       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                       onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+                       onDragLeave={() => setIsDragging(false)}
+                       onClick={() => document.getElementById('photoInput')?.click()}
+                       className={`w-full border-2 border-dashed rounded-sm py-6 flex flex-col items-center justify-center cursor-pointer transition-all ${isDragging ? 'border-[#C5A059] bg-amber-50' : 'border-stone-200 hover:border-stone-400'}`}
+                     >
+                       {isUploading ? (
+                         <p className="text-[10px] uppercase tracking-widest text-stone-400">Chargement...</p>
+                       ) : (
+                         <>
+                           <p className="text-[10px] uppercase tracking-widest text-stone-400">{isDragging ? 'Déposer ici' : 'Glisser les photos ici'}</p>
+                           <p className="text-[9px] text-stone-300 mt-1">ou cliquer pour parcourir</p>
+                         </>
+                       )}
+                     </div>
+                     <input id="photoInput" type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*" />
                      <div className="grid grid-cols-4 gap-2 mt-2">
                        {(isEditing ? (isEditing.images || []) : newProduct.images).map((img: string, idx: number) => (
                          <div key={idx} className="relative aspect-square bg-stone-100 group overflow-hidden border">
@@ -644,10 +815,13 @@ export default function App() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  {products.length === 0 ? (
                    <div className="col-span-2 py-20 text-center border-2 border-dashed border-stone-200 text-stone-300 uppercase tracking-widest text-[10px]">Aucune pièce en ligne</div>
-                 ) : products.map(p => (
-                   <div key={p.id} className="bg-white p-5 shadow-sm border border-stone-100 flex gap-5 group hover:border-[#C5A059]/30 transition-all">
-                     <div className="w-20 h-28 bg-stone-50 overflow-hidden flex-shrink-0">
-                       <img src={p.images?.[0]} className="w-full h-full object-cover" alt="" />
+                 ) : products.map(p => {
+                   const isSoldOut = p.stockQuantity !== undefined && p.stockQuantity <= 0;
+                   return (
+                   <div key={p.id} className="bg-white p-5 shadow-sm border border-stone-100 flex gap-5 group hover:border-[#C5A059]/30 transition-all relative">
+                     <div className="w-20 h-28 bg-stone-50 overflow-hidden flex-shrink-0 relative">
+                       <img src={p.images?.[0]} className={`w-full h-full object-cover ${isSoldOut ? 'grayscale opacity-70' : ''}`} alt="" />
+                       {isSoldOut && <div className="absolute inset-0 bg-red-900/10 flex items-center justify-center"><X size={16} className="text-red-600"/></div>}
                      </div>
                      <div className="flex-1 flex flex-col justify-between">
                        <div>
@@ -655,22 +829,274 @@ export default function App() {
                          <p className="text-[10px] uppercase tracking-widest text-stone-400 mt-2">{p.category}</p>
                          <p className="text-xs font-bold text-[#C5A059] mt-1">{p.price} $</p>
                        </div>
-                       <div className="flex gap-4 border-t border-stone-50 pt-3">
-                         <button onClick={() => setIsEditing(p)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-900 flex items-center gap-1"><Settings size={10}/> Modifier</button>
-                         <button onClick={() => deleteProduct(p.id)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-red-600 flex items-center gap-1"><Trash2 size={10}/> Supprimer</button>
+                       <div className="flex gap-4 border-t border-stone-50 pt-3 items-center">
+                         <span className={`text-[9px] uppercase tracking-widest px-2 py-1 rounded-sm ${isSoldOut ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                           Stock : {p.stockQuantity !== undefined ? p.stockQuantity : '∞'}
+                         </span>
+                         <button onClick={() => setIsEditing(p)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-900 flex items-center gap-1"><Settings size={10}/> Modif.</button>
+                         <button onClick={() => deleteProduct(p.id)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-red-600 flex items-center gap-1"><Trash2 size={10}/> Suppr.</button>
                        </div>
                      </div>
                    </div>
-                 ))}
+                 )})}
                </div>
              </div>
            </div>
           ) : (
-             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-in fade-in duration-500">
-              {/* ... (Admin Commandes - Inchangé pour la concision de l'affichage) ... */}
-              <div className="lg:col-span-12 py-20 text-center text-stone-400 text-sm">
-                 Gestion des commandes : Sélectionnez un client pour expédier ses pièces.
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-in fade-in duration-500">
+
+              {/* COLONNE GAUCHE : LISTE DES COMMANDES */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif text-xl flex items-center gap-2"><Users size={18}/> Commandes</h3>
+                  {clients.length > 0 && (
+                    <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest">
+                      <span className="text-amber-600 font-medium">{clients.filter(c => c.statut !== 'Expédié').length} à préparer</span>
+                      <span className="text-stone-300">·</span>
+                      <span className="text-green-700">{clients.filter(c => c.statut === 'Expédié').length} expédié{clients.filter(c => c.statut === 'Expédié').length > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* BARRE DE RECHERCHE */}
+                <div className="flex items-center gap-3 bg-white border border-stone-200 px-4 py-3 shadow-sm focus-within:border-[#C5A059] transition-colors">
+                  <Search size={14} className="text-stone-300 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom ou courriel..."
+                    value={clientSearch}
+                    onChange={e => setClientSearch(e.target.value)}
+                    className="flex-1 outline-none text-sm font-light text-stone-700 placeholder:text-stone-300 bg-transparent"
+                  />
+                  {clientSearch && (
+                    <button onClick={() => setClientSearch('')} className="text-stone-300 hover:text-stone-600 transition-colors"><X size={14}/></button>
+                  )}
+                </div>
+
+                {/* LISTE */}
+                {clients.length === 0 ? (
+                  <div className="py-16 text-center border-2 border-dashed border-stone-200 text-stone-300 text-[10px] uppercase tracking-widest">
+                    Aucune commande reçue
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[680px] overflow-y-auto pr-1">
+                    {clients
+                      .filter(c => {
+                        const q = clientSearch.toLowerCase();
+                        return !q || (c.nom || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
+                      })
+                      .slice()
+                      .sort((a, b) => {
+                        // À préparer en premier, puis par date décroissante
+                        const aReady = a.statut !== 'Expédié' ? 0 : 1;
+                        const bReady = b.statut !== 'Expédié' ? 0 : 1;
+                        if (aReady !== bReady) return aReady - bReady;
+                        return new Date(b.derniereCommande || 0).getTime() - new Date(a.derniereCommande || 0).getTime();
+                      })
+                      .map(client => {
+                        const isSelected = trackingForm.commandeId === client.id;
+                        const isExpedié = client.statut === 'Expédié';
+                        return (
+                          <button
+                            key={client.id}
+                            onClick={() => setTrackingForm({
+                              ...trackingForm,
+                              commandeId: client.id,
+                              email: client.email || '',
+                              name: client.nom || '',
+                              produits: client.produits || ''
+                            })}
+                            className={`w-full text-left bg-white p-4 border-l-4 border-r border-t border-b transition-all shadow-sm hover:shadow-md ${
+                              isSelected
+                                ? 'border-l-[#C5A059] border-r-[#C5A059]/20 border-t-[#C5A059]/20 border-b-[#C5A059]/20 bg-[#C5A059]/5'
+                                : isExpedié
+                                  ? 'border-l-green-300 border-r-stone-100 border-t-stone-100 border-b-stone-100'
+                                  : 'border-l-amber-400 border-r-stone-100 border-t-stone-100 border-b-stone-100'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-serif text-base truncate">{client.nom || '—'}</p>
+                                <p className="text-[10px] text-stone-400 mt-0.5 truncate">{client.email}</p>
+                                {client.produits && (
+                                  <p className="text-[10px] text-stone-400 mt-1.5 truncate italic">{client.produits}</p>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                <span className={`text-[8px] uppercase tracking-widest px-2 py-1 font-medium whitespace-nowrap ${isExpedié ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                                  {client.statut || 'À préparer'}
+                                </span>
+                                {client.totalDepense != null && (
+                                  <span className="text-xs font-light text-[#C5A059]">{client.totalDepense} $</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-3">
+                              {client.derniereCommande ? (
+                                <p className="text-[9px] text-stone-300 flex items-center gap-1.5">
+                                  <Clock size={10} />
+                                  {new Date(client.derniereCommande).toLocaleDateString('fr-CA', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                </p>
+                              ) : <span />}
+                              {isExpedié && client.trackingNumber && (
+                                <p className="text-[9px] text-green-600 flex items-center gap-1.5">
+                                  <Truck size={10} /> {client.trackingNumber}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
+
+              {/* COLONNE DROITE : FORMULAIRE + HISTORIQUE */}
+              <div className="lg:col-span-7 space-y-8">
+
+                {/* FORMULAIRE D'EXPÉDITION */}
+                <form onSubmit={sendTrackingEmail} className="bg-white p-8 shadow-sm border border-stone-100 space-y-6 sticky top-12">
+                  <h3 className="font-serif text-xl border-b pb-4 flex items-center gap-2">
+                    <Truck size={18}/> Envoyer un suivi d'expédition
+                  </h3>
+
+                  {/* COMMANDE SÉLECTIONNÉE */}
+                  {trackingForm.commandeId ? (
+                    <div className="bg-[#C5A059]/5 border border-[#C5A059]/20 px-4 py-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] uppercase tracking-widest text-[#C5A059] font-medium">Commande sélectionnée</p>
+                        <p className="text-sm font-light mt-1">{trackingForm.name}</p>
+                        <p className="text-[10px] text-stone-400">{trackingForm.email}</p>
+                        {trackingForm.produits && <p className="text-[10px] text-stone-400 mt-0.5 italic">{trackingForm.produits}</p>}
+                      </div>
+                      <button type="button" onClick={() => setTrackingForm({ email: '', name: '', carrier: 'Poste Canada', trackingNumber: '', commandeId: '', produits: '' })} className="text-stone-300 hover:text-stone-600 transition-colors flex-shrink-0 mt-0.5">
+                        <X size={14}/>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-stone-100 px-4 py-5 text-center">
+                      <p className="text-[10px] uppercase tracking-widest text-stone-300">← Sélectionnez une commande dans la liste</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Nom du client</label>
+                        <input
+                          type="text" required
+                          value={trackingForm.name}
+                          onChange={e => setTrackingForm({...trackingForm, name: e.target.value})}
+                          className="w-full border-b border-stone-200 py-2 focus:border-[#C5A059] outline-none font-light text-sm transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Courriel</label>
+                        <input
+                          type="email" required
+                          value={trackingForm.email}
+                          onChange={e => setTrackingForm({...trackingForm, email: e.target.value})}
+                          className="w-full border-b border-stone-200 py-2 focus:border-[#C5A059] outline-none font-light text-sm transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Transporteur</label>
+                        <select
+                          value={trackingForm.carrier}
+                          onChange={e => setTrackingForm({...trackingForm, carrier: e.target.value})}
+                          className="w-full border-b border-stone-200 py-2 focus:border-[#C5A059] outline-none font-light text-sm bg-transparent transition-colors"
+                        >
+                          <option>Poste Canada</option>
+                          <option>UPS</option>
+                          <option>FedEx</option>
+                          <option>Purolator</option>
+                          <option>DHL</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Numéro de suivi</label>
+                        <input
+                          type="text" required
+                          placeholder="ex: 1234 5678 9012"
+                          value={trackingForm.trackingNumber}
+                          onChange={e => setTrackingForm({...trackingForm, trackingNumber: e.target.value})}
+                          className="w-full border-b border-stone-200 py-2 focus:border-[#C5A059] outline-none font-light text-sm transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">Produits expédiés</label>
+                      <input
+                        type="text"
+                        placeholder="ex: Sac à main Noir, Pochette Camel"
+                        value={trackingForm.produits}
+                        onChange={e => setTrackingForm({...trackingForm, produits: e.target.value})}
+                        className="w-full border-b border-stone-200 py-2 focus:border-[#C5A059] outline-none font-light text-sm transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSendingTracking || !trackingForm.commandeId || !trackingForm.trackingNumber}
+                      className="flex-1 bg-stone-900 text-white py-4 text-[10px] uppercase tracking-widest hover:bg-[#C5A059] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-stone-900"
+                    >
+                      {isSendingTracking
+                        ? <><Loader2 size={14} className="animate-spin" /> Envoi en cours…</>
+                        : <><Send size={14} /> Envoyer le suivi</>
+                      }
+                    </button>
+                    {trackingStatus === 'success' && (
+                      <div className="flex items-center gap-2 text-green-600 text-[10px] uppercase tracking-widest flex-shrink-0">
+                        <CheckCircle2 size={16} /> Envoyé !
+                      </div>
+                    )}
+                    {trackingStatus === 'error' && (
+                      <div className="text-red-500 text-[10px] uppercase tracking-widest flex-shrink-0">Erreur</div>
+                    )}
+                  </div>
+                </form>
+
+                {/* HISTORIQUE DES EXPÉDITIONS */}
+                {trackings.length > 0 && (
+                  <div className="bg-white p-8 shadow-sm border border-stone-100">
+                    <h4 className="font-serif text-lg border-b pb-4 mb-6 flex items-center gap-2">
+                      <Package size={16}/> Historique des expéditions
+                      <span className="ml-auto text-[9px] uppercase tracking-widest text-stone-400 font-sans">{trackings.length} envoi{trackings.length > 1 ? 's' : ''}</span>
+                    </h4>
+                    <div className="space-y-0 divide-y divide-stone-50">
+                      {trackings
+                        .slice()
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(t => (
+                          <div key={t.id} className="flex gap-4 py-4">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059] mt-2 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-light">{t.name}</p>
+                                  <p className="text-[10px] text-stone-400 truncate">{t.email}</p>
+                                </div>
+                                <span className="text-[9px] uppercase tracking-widest text-stone-300 flex-shrink-0">
+                                  {new Date(t.date).toLocaleDateString('fr-CA')}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                <span className="text-[9px] uppercase tracking-widest text-stone-400">{t.carrier}</span>
+                                <span className="font-mono text-[10px] text-[#C5A059] bg-[#C5A059]/10 px-2 py-0.5">{t.trackingNumber}</span>
+                              </div>
+                              {t.produits && <p className="text-[10px] text-stone-400 mt-1 italic truncate">{t.produits}</p>}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
         </div>
@@ -680,7 +1106,31 @@ export default function App() {
 
   // --- RENDU BOUTIQUE ---
   return (
-    <div className="min-h-screen bg-[#FDFCFB] text-[#1C1C1C] font-sans selection:bg-[#C5A059] selection:text-white">
+    <div className="min-h-screen bg-[#FDFCFB] text-[#1C1C1C] font-sans selection:bg-[#C5A059] selection:text-white" style={{ cursor: 'none' }}>
+
+      {/* ANIMATIONS GLOBALES */}
+      <style>{`
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes scroll-line { 0% { transform: translateY(-100%); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(200%); opacity: 0; } }
+        @keyframes slideUp { from { transform: translateY(110%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes drawLine { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @keyframes revealRight { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+        @keyframes kb1 { 0% { transform: scale(1) translate(0,0); } 100% { transform: scale(1.12) translate(-1.5%,-2%); } }
+        @keyframes kb2 { 0% { transform: scale(1.06) translate(2%,1%); } 100% { transform: scale(1) translate(0,0); } }
+        @keyframes kb3 { 0% { transform: scale(1) translate(-1%,2%); } 100% { transform: scale(1.1) translate(1%,-1%); } }
+        .text-shimmer { background: linear-gradient(135deg, #C5A059 0%, #E8C97A 55%, #B8913A 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        * { cursor: none !important; }
+      `}</style>
+
+      {/* GRAIN OVERLAY */}
+      <div className="pointer-events-none fixed inset-0 z-[9990] opacity-[0.022]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`, backgroundRepeat: 'repeat', backgroundSize: '200px' }} />
+
+      {/* BARRE DE PROGRESSION SCROLL */}
+      <div className="fixed top-0 left-0 z-[201] h-[1px] bg-gradient-to-r from-[#C5A059] to-[#F0D68A] transition-[width] duration-150 ease-out" style={{ width: `${scrollProgress}%` }} />
+
+      {/* CURSEUR CUSTOM */}
+      <CustomCursor />
 
       {/* MODALE PAIEMENT STRIPE */}
       {clientSecret && (
@@ -752,38 +1202,215 @@ export default function App() {
       </div>
 
       {/* NAVBAR */}
-      <nav className={`fixed w-full z-[100] transition-all duration-700 px-6 md:px-20 py-8 flex justify-between items-center ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent text-white'}`}>
-        <h1 className="text-lg md:text-2xl font-serif uppercase tracking-[0.5em] font-light cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+      <nav className={`fixed w-full z-[100] transition-all duration-700 px-6 md:px-20 py-7 flex justify-between items-center ${scrolled ? 'bg-white/97 backdrop-blur-md shadow-sm' : 'bg-transparent text-white'}`}>
+        <h1 className="text-lg md:text-xl font-serif uppercase tracking-[0.5em] font-light cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
           Amélie Purtell
         </h1>
-        <div className="flex items-center gap-10">
-          <button onClick={() => setIsCartOpen(true)} className="relative group flex items-center gap-3">
-             <span className="hidden md:block text-[9px] uppercase tracking-[0.3em] font-light">Mon Panier</span>
-             <div className="relative">
-               <ShoppingBag size={20} strokeWidth={1} className="group-hover:text-[#C5A059] transition-colors" />
-               {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-[#C5A059] text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{cart.length}</span>}
-             </div>
-          </button>
+        <div className="hidden md:flex items-center gap-12">
+          <button onClick={() => scrollToSection('store')} className="text-[9px] uppercase tracking-[0.3em] font-light hover:text-[#C5A059] transition-colors opacity-70 hover:opacity-100">Collection</button>
+          <button onClick={() => scrollToSection('bespoke-ai')} className="text-[9px] uppercase tracking-[0.3em] font-light hover:text-[#C5A059] transition-colors opacity-70 hover:opacity-100">Sur Mesure</button>
+          <a href="mailto:contact@ameliepurtell.com" className="text-[9px] uppercase tracking-[0.3em] font-light hover:text-[#C5A059] transition-colors opacity-70 hover:opacity-100">Contact</a>
         </div>
+        <button onClick={() => setIsCartOpen(true)} className="relative group flex items-center gap-3">
+           <span className="hidden md:block text-[9px] uppercase tracking-[0.3em] font-light opacity-70 group-hover:opacity-100 group-hover:text-[#C5A059] transition-all">Panier</span>
+           <div className="relative">
+             <ShoppingBag size={20} strokeWidth={1} className="group-hover:text-[#C5A059] transition-colors" />
+             {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-[#C5A059] text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{cart.length}</span>}
+           </div>
+        </button>
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-black/40 z-10" />
-        <video 
-          autoPlay loop muted playsInline 
-          className="absolute inset-0 w-full h-full object-cover scale-105"
-          poster="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=2000&auto=format&fit=crop"
+      <section className="relative h-screen flex overflow-hidden bg-[#0a0a0a]">
+
+        {/* PANNEAU IMAGE — slideshow Ken Burns */}
+        <div
+          className="absolute inset-0 lg:inset-auto lg:right-0 lg:top-0 lg:h-full lg:w-[52%]"
+          style={{ animation: 'revealRight 1.6s cubic-bezier(0.77,0,0.175,1) 0.3s forwards', clipPath: 'inset(0 100% 0 0)' }}
         >
-          <source src="https://assets.mixkit.co/videos/preview/mixkit-fashion-model-showing-a-leather-handbag-34407-large.mp4" type="video/mp4" />
-        </video>
-        <div className="relative z-20 text-center text-white space-y-8 max-w-4xl px-6">
-          <Reveal delay={200}><p className="uppercase tracking-[0.6em] text-[10px] font-light opacity-70">Maison de Haute Maroquinerie</p></Reveal>
-          <Reveal delay={400}><h2 className="text-5xl md:text-8xl font-serif font-light leading-tight italic drop-shadow-lg">L'Héritage Artisanal</h2></Reveal>
-          <Reveal delay={600}>
-            <button onClick={() => scrollToSection('store')} className="border border-white/30 backdrop-blur-sm px-14 py-5 text-[10px] uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all duration-700 font-light">
-              Explorer la collection
+          {/* Fondu gauche desktop */}
+          <div className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-[#0a0a0a] to-transparent z-20 hidden lg:block" />
+          {/* Overlay mobile */}
+          <div className="absolute inset-0 bg-black/60 lg:bg-black/20 z-10" />
+
+          {/* Images empilées — crossfade */}
+          {heroImages.map((src, i) => (
+            <div
+              key={i}
+              className="absolute inset-0 transition-opacity duration-[1800ms] ease-in-out"
+              style={{ opacity: i === heroIndex ? 1 : 0 }}
+            >
+              <img
+                src={src}
+                className="w-full h-full object-cover object-top"
+                style={{ animation: `kb${(i % 3) + 1} ${7 + i * 2}s ease-in-out infinite alternate` }}
+                alt=""
+              />
+            </div>
+          ))}
+
+          {/* Indicateurs — lignes verticales dorées */}
+          <div className="absolute bottom-10 right-6 z-30 hidden lg:flex flex-col gap-2.5 items-center">
+            {heroImages.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHeroIndex(i)}
+                className="w-[1px] transition-all duration-700 ease-in-out"
+                style={{
+                  height: i === heroIndex ? 32 : 10,
+                  background: i === heroIndex ? '#C5A059' : 'rgba(255,255,255,0.2)'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* CONTENU — centré mobile, aligné gauche desktop */}
+        <div className="relative z-20 flex flex-col justify-center items-center lg:items-start text-center lg:text-left px-8 md:px-16 lg:px-24 w-full lg:w-[56%]">
+
+          {/* Label doré */}
+          <div style={{ opacity: 0, animation: 'fadeUp 1s ease 0.5s forwards' }}>
+            <div className="flex items-center justify-center lg:justify-start gap-4 mb-10">
+              <div className="w-6 h-[1px] bg-[#C5A059]" />
+              <p className="text-[8px] uppercase tracking-[0.6em] text-[#C5A059]/70 font-light whitespace-nowrap">Maison de Haute Maroquinerie · Montréal</p>
+            </div>
+          </div>
+
+          {/* Titre ligne 1 — slide depuis le bas */}
+          <div style={{ overflow: 'hidden' }}>
+            <h2
+              className="font-serif font-light text-white leading-[0.88]"
+              style={{ fontSize: 'clamp(3.2rem,8.5vw,7.5rem)', opacity: 0, animation: 'slideUp 1.2s cubic-bezier(0.16,1,0.3,1) 0.65s forwards' }}
+            >
+              L'Héritage
+            </h2>
+          </div>
+
+          {/* Titre ligne 2 — légèrement décalé */}
+          <div style={{ overflow: 'hidden' }}>
+            <h2
+              className="font-serif font-light italic text-[#C5A059] leading-[0.88]"
+              style={{ fontSize: 'clamp(3.2rem,8.5vw,7.5rem)', opacity: 0, animation: 'slideUp 1.2s cubic-bezier(0.16,1,0.3,1) 0.88s forwards' }}
+            >
+              Artisanal
+            </h2>
+          </div>
+
+          {/* Ligne séparatrice animée */}
+          <div
+            className="mt-10 mb-8 h-[1px] w-48 bg-gradient-to-r from-[#C5A059]/60 to-transparent origin-left"
+            style={{ transform: 'scaleX(0)', animation: 'drawLine 1s ease 1.3s forwards' }}
+          />
+
+          {/* Sous-titre */}
+          <p
+            className="text-stone-400 font-light text-sm leading-[1.9] max-w-xs"
+            style={{ opacity: 0, animation: 'fadeUp 1s ease 1.5s forwards' }}
+          >
+            Créations en cuir faites à la main. Chaque pièce est taillée dans les plus nobles matières, pour durer une vie.
+          </p>
+
+          {/* Bouton CTA */}
+          <div style={{ opacity: 0, animation: 'fadeUp 1s ease 1.8s forwards' }} className="mt-10">
+            <button
+              onClick={() => scrollToSection('store')}
+              className="group relative overflow-hidden border border-white/20 px-12 py-5 text-[10px] uppercase tracking-[0.4em] text-white font-light hover:border-[#C5A059] flex items-center gap-5 transition-colors duration-500"
+            >
+              <span className="relative z-10">Explorer la collection</span>
+              <span className="block h-[1px] w-5 bg-white/30 group-hover:w-10 group-hover:bg-[#C5A059] transition-all duration-500" />
+              <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </button>
+          </div>
+
+          {/* Compteur de pièces */}
+          <p
+            className="text-[8px] uppercase tracking-[0.5em] text-white/18 mt-14"
+            style={{ opacity: 0, animation: 'fadeUp 1s ease 2.1s forwards' }}
+          >
+            {products.length > 0 ? `${products.length} pièces · Collection 2026` : 'Collection 2026'}
+          </p>
+        </div>
+
+        {/* INDICATEUR DE DÉFILEMENT */}
+        <div
+          className="absolute bottom-10 left-8 md:left-16 lg:left-24 z-20 flex items-center gap-4"
+          style={{ opacity: 0, animation: 'fadeUp 1s ease 2.4s forwards' }}
+        >
+          <div className="w-[1px] h-12 bg-white/20 relative overflow-hidden">
+            <div className="absolute inset-x-0 h-6 bg-white/40" style={{ animation: 'scroll-line 2s ease-in-out infinite' }} />
+          </div>
+          <span className="text-[7px] uppercase tracking-[0.7em] text-white/25">Défiler</span>
+        </div>
+
+
+      </section>
+
+      {/* BANDEAU MARQUEE */}
+      <div className="py-5 bg-[#111111] overflow-hidden border-y border-stone-800/50">
+        <div style={{ animation: 'marquee 40s linear infinite', display: 'flex', width: 'max-content' }}>
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="flex items-center">
+              {['Haute Maroquinerie', 'Montréal', 'Fait à la Main', 'Pièces Uniques', 'Sur Mesure', 'Cuir Noble', "Artisanat d'Excellence", 'Créations Intemporelles', 'Atelier Purtell', 'Collection 2026'].map((text, j) => (
+                <span key={j} className="flex items-center gap-8 px-8 text-[8px] uppercase tracking-[0.5em] text-white/25 whitespace-nowrap">
+                  {text} <span className="w-1 h-1 rounded-full bg-[#C5A059] inline-block flex-shrink-0" />
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION MANIFESTE */}
+      <section className="bg-[#111111] py-28 px-6 md:px-20 overflow-hidden">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+          <Reveal>
+            <div className="space-y-9">
+              <div>
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-6 h-[1px] bg-[#C5A059]" />
+                  <p className="text-[9px] uppercase tracking-[0.5em] text-[#C5A059]">Notre Philosophie</p>
+                </div>
+                <h3 className="text-4xl md:text-5xl font-serif font-light text-white leading-tight">
+                  L'Art de la<br /><em className="not-italic text-shimmer">Perfection</em>
+                </h3>
+              </div>
+              <p className="text-stone-400 leading-[1.9] font-light text-sm max-w-md">
+                Chaque pièce naît d'un dialogue entre l'artisan et la matière. Des heures de patience, de précision et de passion pour créer des objets qui traversent les générations.
+              </p>
+              <div className="grid grid-cols-3 gap-6 pt-7 border-t border-white/5">
+                <div>
+                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer"><StatCounter target={15} suffix="+" /></p>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Années<br/>d'expertise</p>
+                </div>
+                <div>
+                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer"><StatCounter target={500} suffix="+" /></p>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Créations<br/>uniques</p>
+                </div>
+                <div>
+                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer">100%</p>
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Artisanal<br/>& Local</p>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+          <Reveal delay={300}>
+            <div className="relative h-[440px] lg:h-[540px] overflow-hidden group">
+              <img
+                src="/collection.jpeg"
+                className="w-full h-full object-cover object-center transition-transform duration-[6s] group-hover:scale-105"
+                alt="Collection Amelia Ruby"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute bottom-7 left-7 right-7">
+                <div className="border-l border-[#C5A059]/50 pl-5 space-y-1.5">
+                  <p className="font-serif italic text-white text-base leading-relaxed">"Chaque couture est une promesse d'éternité."</p>
+                  <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">— Amélie Purtell</p>
+                </div>
+              </div>
+              <div className="absolute top-5 right-5 border border-white/15 px-3 py-1.5">
+                <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">Atelier · Montréal</p>
+              </div>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -799,32 +1426,55 @@ export default function App() {
           <div className="h-[400px] flex items-center justify-center"><Loader2 className="animate-spin text-[#C5A059]" size={32} /></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-16 gap-y-28">
-            {products.map((p, i) => (
+            {products.map((p, i) => {
+              const isSoldOut = p.stockQuantity !== undefined && p.stockQuantity <= 0;
+              return (
               <Reveal key={p.id} delay={i * 100}>
-                <div className="group cursor-pointer" onClick={() => openProductModal(p)}>
+                <TiltCard>
+                <div className="group" onClick={() => openProductModal(p)} style={{ cursor: 'none' }}>
                   <div className="relative aspect-[4/5] overflow-hidden bg-stone-50 mb-8 shadow-sm rounded-sm">
-                    <img src={p.images?.[0]} className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110" alt={p.name} />
-                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8">
-                      <button className="w-full bg-white text-black py-4 text-[10px] uppercase tracking-widest font-medium transition-all hover:bg-[#C5A059] hover:text-white shadow-xl translate-y-4 group-hover:translate-y-0 duration-500">
-                        Voir les détails
-                      </button>
-                    </div>
+                    {/* Image avec effet grayscale si épuisé */}
+                    <img src={p.images?.[0]} className={`w-full h-full object-cover transition-transform duration-[3s] ${isSoldOut ? 'grayscale-[60%] scale-100' : 'group-hover:scale-110'}`} alt={p.name} />
+                    
+                    {/* Effet SOLD OUT / FOMO Badge */}
+                    {isSoldOut ? (
+                      <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
+                         <span className="bg-white/95 px-8 py-3 text-[10px] uppercase tracking-[0.4em] font-medium text-stone-900 shadow-xl border border-stone-100/50">
+                            Épuisé
+                         </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8">
+                          <button className="w-full bg-white text-black py-4 text-[10px] uppercase tracking-widest font-medium transition-all hover:bg-[#C5A059] hover:text-white shadow-xl translate-y-4 group-hover:translate-y-0 duration-500">
+                            Voir les détails
+                          </button>
+                        </div>
+                        {/* BADGE FOMO */}
+                        {p.showFomo && p.stockQuantity > 0 && (
+                          <div className="absolute top-4 right-4 bg-[#C5A059] text-white px-3 py-1.5 text-[8px] uppercase tracking-widest shadow-md flex items-center gap-1.5">
+                             <Clock size={10} /> Plus que {p.stockQuantity}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="flex justify-between items-end px-2">
                     <div className="space-y-1">
                       <p className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">{p.category || 'Collection'}</p>
-                      <h4 className="font-serif text-xl tracking-wide">{p.name}</h4>
+                      <h4 className="font-serif text-xl tracking-wide text-stone-900">{p.name}</h4>
                     </div>
                     <span className="text-md font-light text-stone-500">{p.price} $</span>
                   </div>
                 </div>
+                </TiltCard>
               </Reveal>
-            ))}
+            )})}
           </div>
         )}
       </section>
 
-      {/* SECTION IA - ATELIER SUR MESURE (REFONTE HAUT DE GAMME) */}
+      {/* SECTION IA - ATELIER SUR MESURE */}
       <section id="bespoke-ai" className="py-24 bg-[#141414] text-white border-t border-stone-800">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12">
           
@@ -867,7 +1517,6 @@ export default function App() {
               
               <div ref={chatScrollRef} className="flex-1 p-8 overflow-y-auto space-y-8 scroll-smooth">
                 {chatMessages.map((msg, idx) => {
-                  // On cache les images dans le flux chat, car on les affiche en GÉANT à droite.
                   if (msg.type === 'image') return null; 
                   
                   return (
@@ -931,7 +1580,6 @@ export default function App() {
               {latestImage ? (
                 <div className="w-full h-full p-8 md:p-16 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-1000">
                   <div className="relative max-w-full max-h-full flex items-center justify-center">
-                    {/* Cadre luxueux autour de l'image */}
                     <div className="absolute -inset-4 border border-[#C5A059]/20"></div>
                     <img 
                       src={latestImage} 
@@ -971,9 +1619,14 @@ export default function App() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setSelectedProduct(null)} />
           <div className="relative w-full max-w-6xl bg-white flex flex-col md:flex-row overflow-hidden rounded-sm animate-in fade-in zoom-in-95 duration-500 max-h-[95vh]">
-            <button className="absolute top-6 right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
+            <button className="absolute top-6 right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
+            
             <div className="w-full md:w-3/5 bg-stone-50 relative h-[400px] md:h-auto overflow-hidden group/gal">
-              <img src={selectedProduct.images?.[currentImageIndex]} className="w-full h-full object-cover transition-all duration-700" alt="" />
+              <img 
+                src={selectedProduct.images?.[currentImageIndex]} 
+                className={`w-full h-full object-cover transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`} 
+                alt="" 
+              />
               {selectedProduct.images?.length > 1 && (
                 <>
                   <button onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))} className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-white/50 backdrop-blur-md rounded-full opacity-0 group-hover/gal:opacity-100 transition-opacity"><ChevronLeft size={20}/></button>
@@ -981,15 +1634,30 @@ export default function App() {
                 </>
               )}
             </div>
+            
             <div className="w-full md:w-2/5 p-10 md:p-16 flex flex-col justify-between bg-[#FDFCFB] overflow-y-auto">
               <div className="space-y-8">
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <p className="uppercase tracking-[0.4em] text-[10px] text-[#C5A059] font-semibold">{selectedProduct.category}</p>
                   <h2 className="text-4xl md:text-5xl font-serif leading-tight">{selectedProduct.name}</h2>
                   <p className="text-2xl font-light text-stone-600">{selectedProduct.price} $</p>
+                  
+                  {/* MESSAGE STOCK / FOMO / EPUISE */}
+                  {selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? (
+                    <p className="text-[10px] uppercase tracking-widest text-red-800 font-medium flex items-center gap-2 pt-2">
+                       <X size={14}/> Pièce définitivement épuisée
+                    </p>
+                  ) : (
+                    selectedProduct.showFomo && selectedProduct.stockQuantity > 0 && (
+                      <p className="text-[10px] uppercase tracking-widest text-[#C5A059] font-medium flex items-center gap-2 pt-2">
+                        <Clock size={14}/> Édition limitée : Plus que {selectedProduct.stockQuantity} pièce(s)
+                      </p>
+                    )
+                  )}
                 </div>
+
                 {selectedProduct.colors && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 border-t border-stone-100 pt-6">
                     <p className="text-[10px] uppercase tracking-widest text-stone-500 font-medium">Couleur : <span className="text-stone-900">{selectedColor}</span></p>
                     <div className="flex flex-wrap gap-2">
                       {selectedProduct.colors.split(',').map((c: string) => c.trim()).filter(Boolean).map((color: string, idx: number) => (
@@ -1000,38 +1668,97 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <p className="whitespace-pre-wrap italic text-stone-500 font-light leading-relaxed">{selectedProduct.description}</p>
+                <p className="whitespace-pre-wrap italic text-stone-500 font-light leading-relaxed pt-2">{selectedProduct.description}</p>
               </div>
+
               <div className="pt-16">
-                <button onClick={() => addToCart(selectedProduct)} className="w-full bg-[#1C1C1C] text-white py-6 text-[10px] uppercase tracking-[0.3em] font-medium hover:bg-[#C5A059] transition-all shadow-xl group flex items-center justify-center gap-4">
-                  Ajouter au panier <ShoppingBag size={14} />
-                </button>
+                {selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? (
+                  <button disabled className="w-full bg-stone-100 text-stone-400 border border-stone-200 py-6 text-[10px] uppercase tracking-[0.3em] font-medium cursor-not-allowed shadow-sm flex items-center justify-center gap-3">
+                    <Lock size={14} /> Victime de son succès
+                  </button>
+                ) : (
+                  <button onClick={() => addToCart(selectedProduct)} className="w-full bg-[#1C1C1C] text-white py-6 text-[10px] uppercase tracking-[0.3em] font-medium hover:bg-[#C5A059] transition-all shadow-xl group flex items-center justify-center gap-4">
+                    Ajouter au panier <ShoppingBag size={14} />
+                  </button>
+                )}
               </div>
             </div>
+
           </div>
         </div>
       )}
 
+      {/* SECTION CTA SUR MESURE */}
+      <section className="py-40 px-6 md:px-20 bg-[#FDFCFB] relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center space-y-14">
+          <Reveal>
+            <div className="space-y-8">
+              <div className="flex items-center justify-center gap-4">
+                <div className="w-12 h-[1px] bg-stone-200" />
+                <p className="text-[9px] uppercase tracking-[0.5em] text-stone-400">Votre Vision, Notre Expertise</p>
+                <div className="w-12 h-[1px] bg-stone-200" />
+              </div>
+              <h3 className="text-4xl md:text-6xl font-serif font-light leading-tight">
+                Une création<br /><em className="not-italic text-shimmer">rien que pour vous</em>
+              </h3>
+              <p className="text-stone-400 font-light text-sm max-w-lg mx-auto leading-[2]">
+                De l'idée à la réalisation, nos artisans vous accompagnent dans la création de la pièce parfaite — celle que vous ne trouverez nulle part ailleurs.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal delay={200}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <button onClick={() => scrollToSection('bespoke-ai')} className="group relative overflow-hidden bg-[#1C1C1C] text-white px-14 py-5 text-[10px] uppercase tracking-[0.3em] font-medium transition-all duration-500 hover:shadow-2xl hover:shadow-[#C5A059]/20">
+                <span className="relative z-10 flex items-center gap-3 group-hover:text-black transition-colors duration-500">
+                  <Sparkles size={14} /> Atelier Virtuel IA
+                </span>
+                <div className="absolute inset-0 bg-[#C5A059] translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+              </button>
+              <a href="mailto:contact@ameliepurtell.com" className="group border border-stone-300 px-14 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-stone-600 transition-all duration-500 hover:border-[#C5A059] hover:text-[#C5A059] flex items-center gap-3">
+                <Mail size={14} /> Prendre Contact
+              </a>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* FOOTER */}
-      <footer className="bg-[#1C1C1C] text-white/30 py-32 px-6 md:px-20 border-t border-white/5">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-16 text-center md:text-left">
-          <div className="space-y-4">
-            <h5 className="text-white font-serif text-3xl uppercase tracking-widest leading-none">Amélie Purtell</h5>
-            <p className="text-[10px] uppercase tracking-[0.4em] font-light">Atelier Purtell — Montréal</p>
+      <footer className="bg-[#111111] text-white/30 pt-28 pb-12 px-6 md:px-20 border-t border-white/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 pb-20 border-b border-white/5">
+            <div className="space-y-6">
+              <h5 className="text-white font-serif text-4xl tracking-widest leading-none">Amélie<br/>Purtell</h5>
+              <p className="text-[10px] uppercase tracking-[0.4em] font-light leading-relaxed">Maison de Haute Maroquinerie<br/>Montréal, Québec</p>
+              <div className="flex items-center gap-3 pt-2">
+                <div className="w-4 h-[1px] bg-[#C5A059]" />
+                <span className="text-[8px] uppercase tracking-[0.3em] text-[#C5A059]/60">Artisan certifié</span>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <p className="text-[9px] uppercase tracking-[0.4em] text-white/20 font-medium">Navigation</p>
+              <div className="space-y-4">
+                <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Collection</button>
+                <button onClick={() => scrollToSection('bespoke-ai')} className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Atelier IA Sur Mesure</button>
+                <a href="#" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Instagram</a>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <p className="text-[9px] uppercase tracking-[0.4em] text-white/20 font-medium">Contact</p>
+              <div className="space-y-4">
+                <a href="mailto:contact@ameliepurtell.com" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">contact@ameliepurtell.com</a>
+                <p className="text-[10px] uppercase tracking-[0.3em] font-light">Montréal, Québec</p>
+                <button onClick={() => setView('admin')} className="text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Accès Atelier Privé</button>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col md:flex-row gap-8 md:gap-16 text-[10px] uppercase tracking-[0.4em] font-light">
-            <a href="#" className="hover:text-[#C5A059] transition-colors">Instagram</a>
-            <button onClick={() => scrollToSection('bespoke-ai')} className="hover:text-[#C5A059] transition-colors uppercase tracking-[0.4em]">Sur Mesure IA</button>
-            <button 
-              onClick={() => setView('admin')} 
-              className="hover:text-[#C5A059] transition-colors uppercase tracking-[0.4em]"
-            >
-              Accès Atelier
-            </button>
+          <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center">
+            <p className="text-[8px] uppercase tracking-[0.3em] font-light text-stone-700">© 2026 — Maison Amélie Purtell — Tous droits réservés</p>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-[1px] bg-white/10" />
+              <p className="text-[8px] uppercase tracking-[0.3em] font-light text-stone-700">Fait avec soin à Montréal</p>
+              <div className="w-4 h-[1px] bg-white/10" />
+            </div>
           </div>
-          <p className="text-[9px] uppercase tracking-[0.3em] font-light text-stone-600">
-            © 2024 — Maison Amélie Purtell
-          </p>
         </div>
       </footer>
     </div>

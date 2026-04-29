@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const stripe = new Stripe(stripeKey, {
-      apiVersion: '2026-03-25.dahlia' as any,
+      apiVersion: '2026-03-25.dahlia' as any, // Assure-toi d'utiliser la même version que dans ton webhook
     });
 
     const body = await request.json();
@@ -53,15 +53,17 @@ export async function POST(request: Request) {
       },
 
       // 👇 LA CORRECTION CRUCIALE EST ICI 👇
-      // Ces métadonnées sont attachées à la Session pour que le Webhook puisse les lire !
+      // On ajoute cartItems en format JSON (chaîne de caractères) pour que le webhook
+      // puisse récupérer les IDs des produits et décrémenter le stock de l'inventaire.
       metadata: {
-        produits: orderDescription
+        produits: orderDescription,
+        cartItems: JSON.stringify(items.map((i: any) => ({ id: i.id, quantity: i.quantity })))
       },
       // 👆 👆 👆
       
       // Demander l'adresse de livraison
       shipping_address_collection: {
-        allowed_countries: ['CA', 'US', 'FR', 'BE', 'CH'], // Remplace ou ajoute des codes ISO de pays si besoin
+        allowed_countries: ['CA', 'US', 'FR', 'BE', 'CH'], 
       },
       
       // Demander le numéro de téléphone (très utile pour FedEx, UPS, etc.)
