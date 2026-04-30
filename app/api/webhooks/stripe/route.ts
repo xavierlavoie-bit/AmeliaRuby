@@ -150,8 +150,8 @@ export async function POST(req: Request) {
 
           await sgMail.send({
             to: customerEmail,
-            from: 'Maison Amélia Ruby <xavier.lavoie@optimiplex.com>',
-            replyTo: 'atelier@ameliepurtell.com',
+            from: 'Maison Amélia Ruby <info@ameliaruby.com>',
+            replyTo: 'info@ameliaruby.com',
             subject: 'Merci de votre confiance — Maison Amélia Ruby',
             text: `Bonjour ${customerName}, votre commande est en cours de préparation.`,
             html: emailHtml,

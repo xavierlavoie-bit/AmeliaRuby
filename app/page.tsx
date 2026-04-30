@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ShoppingBag, X, Loader2, Lock, 
-  Plus, Minus, Trash2, ChevronLeft, ChevronRight, Settings, 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ShoppingBag, X, Loader2, Lock,
+  Plus, Minus, Trash2, ChevronLeft, ChevronRight, Settings,
   LayoutGrid, Package, PlusCircle, Upload, Eye, EyeOff, Mail, Truck, Users, Search, CheckCircle2, Clock,
   Sparkles, Send, Download, RefreshCw
 } from 'lucide-react';
@@ -1149,57 +1150,89 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
       )}
 
       {/* PANIER SLIDE-OVER */}
-      <div className={`fixed inset-0 z-[150] transition-opacity duration-500 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
-        <div className={`absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transition-transform duration-500 flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="p-8 border-b flex justify-between items-center">
-            <h3 className="font-serif text-2xl uppercase tracking-widest italic">Votre Panier</h3>
-            <button onClick={() => setIsCartOpen(false)}><X size={24} strokeWidth={1} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-8 space-y-8">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-stone-400 gap-4 opacity-50">
-                <ShoppingBag size={48} strokeWidth={1} />
-                <p className="uppercase tracking-[0.3em] text-[10px]">Le panier est vide</p>
+      <AnimatePresence>
+        {isCartOpen && (
+          <div className="fixed inset-0 z-[150]">
+            <motion.div
+              className="absolute inset-0 bg-black/10 backdrop-blur-sm"
+              onClick={() => setIsCartOpen(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+            <motion.div
+              className="absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            >
+              <div className="p-8 border-b flex justify-between items-center">
+                <h3 className="font-serif text-2xl uppercase tracking-widest italic">Votre Panier</h3>
+                <button onClick={() => setIsCartOpen(false)}><X size={24} strokeWidth={1} /></button>
               </div>
-            ) : cart.map(item => (
-              <div key={item.cartItemId} className="flex gap-6 border-b border-stone-100 pb-6 group">
-                <div className="w-24 h-32 bg-stone-50 overflow-hidden rounded-sm border">
-                  <img src={item.images?.[0]} className="w-full h-full object-cover" alt="" />
-                </div>
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <h4 className="font-serif text-lg leading-tight">{item.name}</h4>
-                    {item.selectedColor && (
-                      <p className="text-[10px] uppercase tracking-widest text-stone-400 mt-1">{item.selectedColor}</p>
-                    )}
-                    <p className="text-sm font-light text-[#C5A059] mt-2">{item.price} $</p>
+              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-stone-400 gap-4 opacity-50">
+                    <ShoppingBag size={48} strokeWidth={1} />
+                    <p className="uppercase tracking-[0.3em] text-[10px]">Le panier est vide</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center border border-stone-200">
-                      <button onClick={() => updateQty(item.cartItemId, -1)} className="p-2 px-3 text-stone-400 hover:text-black transition-colors"><Minus size={12}/></button>
-                      <span className="w-8 text-center text-xs font-light">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.cartItemId, 1)} className="p-2 px-3 text-stone-400 hover:text-black transition-colors"><Plus size={12}/></button>
+                ) : cart.map(item => (
+                  <motion.div
+                    key={item.cartItemId}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: 30 }}
+                    transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="flex gap-6 border-b border-stone-100 pb-6 group"
+                  >
+                    <div className="w-24 h-32 bg-stone-50 overflow-hidden rounded-sm border">
+                      <img src={item.images?.[0]} className="w-full h-full object-cover" alt="" />
                     </div>
-                    <button onClick={() => removeItem(item.cartItemId)} className="text-stone-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-serif text-lg leading-tight">{item.name}</h4>
+                        {item.selectedColor && (
+                          <p className="text-[10px] uppercase tracking-widest text-stone-400 mt-1">{item.selectedColor}</p>
+                        )}
+                        <p className="text-sm font-light text-[#C5A059] mt-2">{item.price} $</p>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center border border-stone-200">
+                          <button onClick={() => updateQty(item.cartItemId, -1)} className="p-2 px-3 text-stone-400 hover:text-black transition-colors"><Minus size={12}/></button>
+                          <span className="w-8 text-center text-xs font-light">{item.quantity}</span>
+                          <button onClick={() => updateQty(item.cartItemId, 1)} className="p-2 px-3 text-stone-400 hover:text-black transition-colors"><Plus size={12}/></button>
+                        </div>
+                        <button onClick={() => removeItem(item.cartItemId)} className="text-stone-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              {cart.length > 0 && (
+                <div className="p-8 bg-stone-50 border-t space-y-6">
+                  <div className="flex justify-between items-end">
+                    <span className="uppercase tracking-widest text-[10px] text-stone-400">Total</span>
+                    <span className="font-serif text-3xl">{cart.reduce((a, b) => a + (b.price * b.quantity), 0)} $</span>
                   </div>
+                  <motion.button
+                    onClick={handleCheckout}
+                    disabled={isCheckingOut}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', damping: 18, stiffness: 350 }}
+                    className="w-full bg-[#1C1C1C] text-white py-5 text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-[#C5A059] transition-colors shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {isCheckingOut ? <Loader2 size={16} className="animate-spin" /> : "Procéder au paiement"}
+                  </motion.button>
                 </div>
-              </div>
-            ))}
+              )}
+            </motion.div>
           </div>
-          {cart.length > 0 && (
-            <div className="p-8 bg-stone-50 border-t space-y-6">
-              <div className="flex justify-between items-end">
-                <span className="uppercase tracking-widest text-[10px] text-stone-400">Total</span>
-                <span className="font-serif text-3xl">{cart.reduce((a, b) => a + (b.price * b.quantity), 0)} $</span>
-              </div>
-              <button onClick={handleCheckout} disabled={isCheckingOut} className="w-full bg-[#1C1C1C] text-white py-5 text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-[#C5A059] transition-all shadow-lg flex items-center justify-center gap-2">
-                {isCheckingOut ? <Loader2 size={16} className="animate-spin" /> : "Procéder au paiement"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
 
       {/* NAVBAR */}
       <nav className={`fixed w-full z-[100] transition-all duration-700 px-6 md:px-20 py-7 flex justify-between items-center ${scrolled ? 'bg-white/97 backdrop-blur-md shadow-sm' : 'bg-transparent text-white'}`}>
@@ -1615,10 +1648,23 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
       </section>
 
       {/* MODALE PRODUIT */}
+      <AnimatePresence>
       {selectedProduct && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setSelectedProduct(null)} />
-          <div className="relative w-full max-w-6xl bg-white flex flex-col md:flex-row overflow-hidden rounded-sm animate-in fade-in zoom-in-95 duration-500 max-h-[95vh]">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            onClick={() => setSelectedProduct(null)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+            className="relative w-full max-w-6xl bg-white flex flex-col md:flex-row overflow-hidden rounded-sm max-h-[95vh]">
             <button className="absolute top-6 right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
             
             <div className="w-full md:w-3/5 bg-stone-50 relative h-[400px] md:h-auto overflow-hidden group/gal">
@@ -1684,9 +1730,10 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
               </div>
             </div>
 
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
 
       {/* SECTION CTA SUR MESURE */}
       <section className="py-40 px-6 md:px-20 bg-[#FDFCFB] relative overflow-hidden">
@@ -1714,7 +1761,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 </span>
                 <div className="absolute inset-0 bg-[#C5A059] translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
               </button>
-              <a href="mailto:contact@ameliepurtell.com" className="group border border-stone-300 px-14 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-stone-600 transition-all duration-500 hover:border-[#C5A059] hover:text-[#C5A059] flex items-center gap-3">
+              <a href="mailto:info@ameliaruby.com" className="group border border-stone-300 px-14 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-stone-600 transition-all duration-500 hover:border-[#C5A059] hover:text-[#C5A059] flex items-center gap-3">
                 <Mail size={14} /> Prendre Contact
               </a>
             </div>
@@ -1771,7 +1818,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             <div className="space-y-6">
               <p className="text-[9px] uppercase tracking-[0.4em] text-white/20 font-medium">Contact</p>
               <div className="space-y-4">
-                <a href="mailto:contact@ameliaruby.com" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">contact@ameliaruby.com</a>
+                <a href="mailto:info@ameliaruby.com" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">info@ameliaruby.com</a>
                 <p className="text-[10px] uppercase tracking-[0.3em] font-light">Montréal, Québec</p>
                 <button onClick={() => setView('admin')} className="text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Accès Atelier Privé</button>
               </div>

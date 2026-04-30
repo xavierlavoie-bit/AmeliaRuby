@@ -52,10 +52,10 @@ export async function POST(req: Request) {
     await sgMail.send({
       to: email,
       from: {
-        email: 'xavier.lavoie@optimiplex.com',
+        email: 'info@ameliaruby.com',
         name: 'Maison Amélia Ruby'
       },
-      replyTo: 'atelier@ameliepurtell.com',
+      replyTo: 'info@ameliaruby.com',
       subject: 'Votre création est en route — Maison Amélia Ruby',
       text: `Votre colis (${carrier}) avec le numéro ${trackingNumber} a été expédié.`,
       html: emailHtml,
