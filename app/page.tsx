@@ -634,7 +634,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
           </button>
           <div className="w-full max-w-sm space-y-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="space-y-4">
-              <h1 className="text-2xl font-serif uppercase tracking-[0.5em] font-light">Amélie Purtell</h1>
+              <h1 className="text-2xl font-serif uppercase tracking-[0.5em] font-light">Amélia Ruby</h1>
               <p className="text-[10px] uppercase tracking-[0.4em] text-[#C5A059] font-medium">Espace Privé Artisan</p>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); if(adminPassword === 'atelier2024') setIsAdminAuthenticated(true); else alert("Code incorrect"); }} className="space-y-8">
@@ -664,7 +664,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         <div className="max-w-6xl mx-auto">
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 border-b pb-8">
             <div>
-              <h1 className="text-3xl font-serif">Maison Amélie Purtell</h1>
+              <h1 className="text-3xl font-serif">Maison Amélia Ruby</h1>
               <div className="flex gap-8 mt-6">
                 <button 
                   onClick={() => setAdminTab('inventory')}
@@ -1204,7 +1204,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
       {/* NAVBAR */}
       <nav className={`fixed w-full z-[100] transition-all duration-700 px-6 md:px-20 py-7 flex justify-between items-center ${scrolled ? 'bg-white/97 backdrop-blur-md shadow-sm' : 'bg-transparent text-white'}`}>
         <h1 className="text-lg md:text-xl font-serif uppercase tracking-[0.5em] font-light cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
-          Amélie Purtell
+          Amélia Ruby
         </h1>
         <div className="hidden md:flex items-center gap-12">
           <button onClick={() => scrollToSection('store')} className="text-[9px] uppercase tracking-[0.3em] font-light hover:text-[#C5A059] transition-colors opacity-70 hover:opacity-100">Collection</button>
@@ -1404,7 +1404,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
               <div className="absolute bottom-7 left-7 right-7">
                 <div className="border-l border-[#C5A059]/50 pl-5 space-y-1.5">
                   <p className="font-serif italic text-white text-base leading-relaxed">"Chaque couture est une promesse d'éternité."</p>
-                  <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">— Amélie Purtell</p>
+                  <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">— Amélia Ruby</p>
                 </div>
               </div>
               <div className="absolute top-5 right-5 border border-white/15 px-3 py-1.5">
@@ -1511,7 +1511,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 </div>
                 <div>
                   <h4 className="font-serif text-lg tracking-wide">Artisan IA</h4>
-                  <p className="text-[8px] uppercase tracking-[0.3em] text-[#C5A059] mt-1">Maison Amélie Purtell</p>
+                  <p className="text-[8px] uppercase tracking-[0.3em] text-[#C5A059] mt-1">Maison Amélia Ruby</p>
                 </div>
               </div>
               
@@ -1752,7 +1752,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             </div>
           </div>
           <div className="pt-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-            <p className="text-[8px] uppercase tracking-[0.3em] font-light text-stone-700">© 2026 — Maison Amélie Purtell — Tous droits réservés</p>
+            <p className="text-[8px] uppercase tracking-[0.3em] font-light text-stone-700">© 2026 — Maison Amélia Ruby — Tous droits réservés</p>
             <div className="flex items-center gap-3">
               <div className="w-4 h-[1px] bg-white/10" />
               <p className="text-[8px] uppercase tracking-[0.3em] font-light text-stone-700">Fait avec soin à Montréal</p>

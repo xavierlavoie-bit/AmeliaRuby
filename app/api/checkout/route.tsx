@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       invoice_creation: {
         enabled: true,
         invoice_data: {
-          description: `Merci pour votre commande chez Maison Amélie Purtell. Détails : ${orderDescription}`,
+          description: `Merci pour votre commande chez Maison Amélia Ruby. Détails : ${orderDescription}`,
         }
       },
       

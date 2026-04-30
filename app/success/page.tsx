@@ -20,7 +20,7 @@ export default function SuccessPage() {
       {/* NAVBAR SIMPLIFIÉE */}
       <nav className="w-full px-6 md:px-20 py-8 flex justify-center items-center absolute top-0 border-b border-stone-100">
         <h1 className="text-xl md:text-2xl font-serif uppercase tracking-[0.5em] font-light">
-          Amélie Purtell
+          Amélia Ruby
         </h1>
       </nav>
 
@@ -56,7 +56,7 @@ export default function SuccessPage() {
       {/* FOOTER MINIMAL */}
       <footer className="py-8 text-center border-t border-stone-100">
         <p className="text-[9px] uppercase tracking-[0.3em] font-light text-stone-400">
-          © 2024 — Maison Amélie Purtell • Atelier Bordeaux
+          © 2024 — Maison Amélia Ruby • Atelier Bordeaux
         </p>
       </footer>
 
