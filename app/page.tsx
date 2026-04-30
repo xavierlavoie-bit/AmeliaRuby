@@ -1727,11 +1727,37 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-16 pb-20 border-b border-white/5">
             <div className="space-y-6">
-              <h5 className="text-white font-serif text-4xl tracking-widest leading-none">Amélie<br/>Purtell</h5>
+              <h5 className="text-white font-serif text-4xl tracking-widest leading-none">Amélia<br/>Ruby</h5>
               <p className="text-[10px] uppercase tracking-[0.4em] font-light leading-relaxed">Maison de Haute Maroquinerie<br/>Montréal, Québec</p>
               <div className="flex items-center gap-3 pt-2">
                 <div className="w-4 h-[1px] bg-[#C5A059]" />
                 <span className="text-[8px] uppercase tracking-[0.3em] text-[#C5A059]/60">Artisan certifié</span>
+              </div>
+              <div className="flex items-center gap-4 pt-3">
+                <a
+                  href="https://www.instagram.com/ameliarubyofficial/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="w-9 h-9 flex items-center justify-center border border-white/10 rounded-full text-white/40 hover:text-[#C5A059] hover:border-[#C5A059]/40 transition-all"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.facebook.com/LaRubiaCara"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="w-9 h-9 flex items-center justify-center border border-white/10 rounded-full text-white/40 hover:text-[#C5A059] hover:border-[#C5A059]/40 transition-all"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                  </svg>
+                </a>
               </div>
             </div>
             <div className="space-y-6">
@@ -1739,13 +1765,13 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
               <div className="space-y-4">
                 <button onClick={() => window.scrollTo({top:0,behavior:'smooth'})} className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Collection</button>
                 <button onClick={() => scrollToSection('bespoke-ai')} className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Atelier IA Sur Mesure</button>
-                <a href="#" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Instagram</a>
+                <a href="https://www.instagram.com/ameliarubyofficial/" target="_blank" rel="noopener noreferrer" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Instagram</a>
               </div>
             </div>
             <div className="space-y-6">
               <p className="text-[9px] uppercase tracking-[0.4em] text-white/20 font-medium">Contact</p>
               <div className="space-y-4">
-                <a href="mailto:contact@ameliepurtell.com" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">contact@ameliepurtell.com</a>
+                <a href="mailto:contact@ameliaruby.com" className="block text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">contact@ameliaruby.com</a>
                 <p className="text-[10px] uppercase tracking-[0.3em] font-light">Montréal, Québec</p>
                 <button onClick={() => setView('admin')} className="text-[10px] uppercase tracking-[0.3em] hover:text-[#C5A059] transition-colors font-light">Accès Atelier Privé</button>
               </div>
