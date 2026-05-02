@@ -171,7 +171,7 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[],
-    stockQuantity: 1, showFomo: false // NOUVEAU: Gestion des stocks
+    stockQuantity: 1, showFomo: false, isPublished: false
   });
 
   // États Admin - Suivi
@@ -462,7 +462,7 @@ export default function App() {
         setIsEditing(null);
       } else {
         await addDoc(colRef, { ...newProduct, createdAt: Date.now() });
-        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false });
+        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false, isPublished: false });
       }
     } catch (err) { console.error("Save error", err); }
   };
@@ -745,13 +745,30 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                               {(isEditing ? isEditing.showFomo : newProduct.showFomo) && <CheckCircle2 size={12} className="text-white"/>}
                           </div>
                           <span className="text-[9px] uppercase tracking-[0.2em] text-stone-500 group-hover:text-black transition-colors">Créer l'urgence (FOMO)</span>
-                          <input 
+                          <input
                             type="checkbox" className="hidden"
                             checked={isEditing ? isEditing.showFomo : newProduct.showFomo}
                             onChange={e => isEditing ? setIsEditing({...isEditing, showFomo: e.target.checked}) : setNewProduct({...newProduct, showFomo: e.target.checked})}
                           />
                         </label>
                       </div>
+                   </div>
+
+                   <div className="flex items-center gap-3 px-3 py-3 bg-stone-50 border border-stone-100">
+                     <label className="flex items-center gap-3 cursor-pointer group flex-1">
+                       <div className={`w-4 h-4 border flex items-center justify-center transition-colors ${ (isEditing ? isEditing.isPublished : newProduct.isPublished) ? 'bg-green-600 border-green-600' : 'border-stone-300 group-hover:border-green-600'}`}>
+                           {(isEditing ? isEditing.isPublished : newProduct.isPublished) && <CheckCircle2 size={12} className="text-white"/>}
+                       </div>
+                       <div className="flex flex-col gap-0.5">
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-medium group-hover:text-black transition-colors">Publier sur la boutique</span>
+                         <span className="text-[9px] text-stone-400 font-light">Décocher pour préparer en mode brouillon</span>
+                       </div>
+                       <input
+                         type="checkbox" className="hidden"
+                         checked={isEditing ? !!isEditing.isPublished : newProduct.isPublished}
+                         onChange={e => isEditing ? setIsEditing({...isEditing, isPublished: e.target.checked}) : setNewProduct({...newProduct, isPublished: e.target.checked})}
+                       />
+                     </label>
                    </div>
 
                    <input 
@@ -818,22 +835,32 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                    <div className="col-span-2 py-20 text-center border-2 border-dashed border-stone-200 text-stone-300 uppercase tracking-widest text-[10px]">Aucune pièce en ligne</div>
                  ) : products.map(p => {
                    const isSoldOut = p.stockQuantity !== undefined && p.stockQuantity <= 0;
+                   const isPub = p.isPublished === true;
                    return (
-                   <div key={p.id} className="bg-white p-5 shadow-sm border border-stone-100 flex gap-5 group hover:border-[#C5A059]/30 transition-all relative">
+                   <div key={p.id} className={`bg-white p-5 shadow-sm border flex gap-5 group hover:border-[#C5A059]/30 transition-all relative ${isPub ? 'border-stone-100' : 'border-amber-200 bg-amber-50/30'}`}>
+                     {!isPub && (
+                       <div className="absolute top-2 right-2 bg-amber-500 text-white px-2 py-0.5 text-[8px] uppercase tracking-widest font-medium shadow-sm">Brouillon</div>
+                     )}
                      <div className="w-20 h-28 bg-stone-50 overflow-hidden flex-shrink-0 relative">
-                       <img src={p.images?.[0]} className={`w-full h-full object-cover ${isSoldOut ? 'grayscale opacity-70' : ''}`} alt="" />
+                       <img src={p.images?.[0]} className={`w-full h-full object-cover ${isSoldOut ? 'grayscale opacity-70' : ''} ${!isPub ? 'opacity-60' : ''}`} alt="" />
                        {isSoldOut && <div className="absolute inset-0 bg-red-900/10 flex items-center justify-center"><X size={16} className="text-red-600"/></div>}
                      </div>
-                     <div className="flex-1 flex flex-col justify-between">
+                     <div className="flex-1 flex flex-col justify-between min-w-0">
                        <div>
                          <h4 className="font-serif text-lg leading-tight">{p.name}</h4>
                          <p className="text-[10px] uppercase tracking-widest text-stone-400 mt-2">{p.category}</p>
                          <p className="text-xs font-bold text-[#C5A059] mt-1">{p.price} $</p>
                        </div>
-                       <div className="flex gap-4 border-t border-stone-50 pt-3 items-center">
+                       <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-stone-50 pt-3 items-center">
                          <span className={`text-[9px] uppercase tracking-widest px-2 py-1 rounded-sm ${isSoldOut ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
                            Stock : {p.stockQuantity !== undefined ? p.stockQuantity : '∞'}
                          </span>
+                         <button
+                           onClick={async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inventory', p.id), { isPublished: !isPub }); }}
+                           className={`text-[9px] uppercase tracking-widest px-2 py-1 rounded-sm transition-colors ${isPub ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                         >
+                           {isPub ? '● En ligne' : '○ Hors ligne'}
+                         </button>
                          <button onClick={() => setIsEditing(p)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-900 flex items-center gap-1"><Settings size={10}/> Modif.</button>
                          <button onClick={() => deleteProduct(p.id)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-red-600 flex items-center gap-1"><Trash2 size={10}/> Suppr.</button>
                        </div>
@@ -1405,6 +1432,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-3 md:gap-x-16 gap-y-12 md:gap-y-28">
             {[...products]
+              .filter(p => p.isPublished === true)
               .sort((a, b) => {
                 const aOut = a.stockQuantity !== undefined && a.stockQuantity <= 0 ? 1 : 0;
                 const bOut = b.stockQuantity !== undefined && b.stockQuantity <= 0 ? 1 : 0;
