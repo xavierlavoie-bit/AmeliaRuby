@@ -1393,64 +1393,9 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         </div>
       </div>
 
-      {/* SECTION MANIFESTE */}
-      <section className="bg-[#111111] py-28 px-6 md:px-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-          <Reveal>
-            <div className="space-y-9">
-              <div>
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="w-6 h-[1px] bg-[#C5A059]" />
-                  <p className="text-[9px] uppercase tracking-[0.5em] text-[#C5A059]">Notre Philosophie</p>
-                </div>
-                <h3 className="text-4xl md:text-5xl font-serif font-light text-white leading-tight">
-                  L'Art de la<br /><em className="not-italic text-shimmer">Perfection</em>
-                </h3>
-              </div>
-              <p className="text-stone-400 leading-[1.9] font-light text-sm max-w-md">
-                Chaque pièce naît d'un dialogue entre l'artisan et la matière. Des heures de patience, de précision et de passion pour créer des objets qui traversent les générations.
-              </p>
-              <div className="grid grid-cols-3 gap-6 pt-7 border-t border-white/5">
-                <div>
-                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer"><StatCounter target={15} suffix="+" /></p>
-                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Années<br/>d'expertise</p>
-                </div>
-                <div>
-                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer"><StatCounter target={500} suffix="+" /></p>
-                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Créations<br/>uniques</p>
-                </div>
-                <div>
-                  <p className="text-2xl md:text-3xl font-serif font-light text-shimmer">100%</p>
-                  <p className="text-[8px] uppercase tracking-[0.2em] text-stone-500 mt-3 leading-relaxed">Artisanal<br/>& Local</p>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-          <Reveal delay={300}>
-            <div className="relative h-[440px] lg:h-[540px] overflow-hidden group">
-              <img
-                src="/collection.jpeg"
-                className="w-full h-full object-cover object-center transition-transform duration-[6s] group-hover:scale-105"
-                alt="Collection Amelia Ruby"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-7 left-7 right-7">
-                <div className="border-l border-[#C5A059]/50 pl-5 space-y-1.5">
-                  <p className="font-serif italic text-white text-base leading-relaxed">"Chaque couture est une promesse d'éternité."</p>
-                  <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">— Amélia Ruby</p>
-                </div>
-              </div>
-              <div className="absolute top-5 right-5 border border-white/15 px-3 py-1.5">
-                <p className="text-[8px] uppercase tracking-[0.4em] text-white/40">Atelier · Montréal</p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
       {/* GRILLE DE PRODUITS */}
-      <section id="store" className="py-32 px-6 md:px-20 max-w-7xl mx-auto border-b border-stone-200/50">
-        <div className="mb-32 text-center space-y-4">
+      <section id="store" className="py-20 md:py-32 px-3 md:px-20 max-w-7xl mx-auto border-b border-stone-200/50">
+        <div className="mb-16 md:mb-32 text-center space-y-4">
           <Reveal><h3 className="text-3xl md:text-5xl font-serif font-light leading-tight">Pièces <span className="italic text-[#C5A059]">Intemporelles</span></h3></Reveal>
           <Reveal delay={200}><div className="w-12 h-px bg-[#C5A059] mx-auto opacity-50"></div></Reveal>
         </div>
@@ -1458,46 +1403,54 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         {isLoading ? (
           <div className="h-[400px] flex items-center justify-center"><Loader2 className="animate-spin text-[#C5A059]" size={32} /></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-16 gap-y-28">
-            {products.map((p, i) => {
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-3 md:gap-x-16 gap-y-12 md:gap-y-28">
+            {[...products]
+              .sort((a, b) => {
+                const aOut = a.stockQuantity !== undefined && a.stockQuantity <= 0 ? 1 : 0;
+                const bOut = b.stockQuantity !== undefined && b.stockQuantity <= 0 ? 1 : 0;
+                return aOut - bOut;
+              })
+              .map((p, i) => {
               const isSoldOut = p.stockQuantity !== undefined && p.stockQuantity <= 0;
               return (
               <Reveal key={p.id} delay={i * 100}>
                 <TiltCard>
-                <div className="group" onClick={() => openProductModal(p)} style={{ cursor: 'none' }}>
-                  <div className="relative aspect-[4/5] overflow-hidden bg-stone-50 mb-8 shadow-sm rounded-sm">
+                <div className="group" onClick={() => openProductModal(p)}>
+                  <div className="relative aspect-[4/5] overflow-hidden bg-stone-50 mb-3 md:mb-8 shadow-sm rounded-sm">
                     {/* Image avec effet grayscale si épuisé */}
                     <img src={p.images?.[0]} className={`w-full h-full object-cover transition-transform duration-[3s] ${isSoldOut ? 'grayscale-[60%] scale-100' : 'group-hover:scale-110'}`} alt={p.name} />
-                    
+
                     {/* Effet SOLD OUT / FOMO Badge */}
                     {isSoldOut ? (
                       <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
-                         <span className="bg-white/95 px-8 py-3 text-[10px] uppercase tracking-[0.4em] font-medium text-stone-900 shadow-xl border border-stone-100/50">
+                         <span className="bg-white/95 px-4 md:px-8 py-2 md:py-3 text-[8px] md:text-[10px] uppercase tracking-[0.3em] md:tracking-[0.4em] font-medium text-stone-900 shadow-xl border border-stone-100/50">
                             Épuisé
                          </span>
                       </div>
                     ) : (
                       <>
-                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8">
+                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-end p-8">
                           <button className="w-full bg-white text-black py-4 text-[10px] uppercase tracking-widest font-medium transition-all hover:bg-[#C5A059] hover:text-white shadow-xl translate-y-4 group-hover:translate-y-0 duration-500">
                             Voir les détails
                           </button>
                         </div>
                         {/* BADGE FOMO */}
                         {p.showFomo && p.stockQuantity > 0 && (
-                          <div className="absolute top-4 right-4 bg-[#C5A059] text-white px-3 py-1.5 text-[8px] uppercase tracking-widest shadow-md flex items-center gap-1.5">
-                             <Clock size={10} /> Plus que {p.stockQuantity}
+                          <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-[#C5A059] text-white px-2 py-1 md:px-3 md:py-1.5 text-[7px] md:text-[8px] uppercase tracking-widest shadow-md flex items-center gap-1 md:gap-1.5">
+                             <Clock size={9} className="md:hidden" />
+                             <Clock size={10} className="hidden md:block" />
+                             <span className="hidden md:inline">Plus que </span>{p.stockQuantity}
                           </div>
                         )}
                       </>
                     )}
                   </div>
-                  <div className="flex justify-between items-end px-2">
-                    <div className="space-y-1">
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">{p.category || 'Collection'}</p>
-                      <h4 className="font-serif text-xl tracking-wide text-stone-900">{p.name}</h4>
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-1 px-1 md:px-2">
+                    <div className="space-y-0.5 md:space-y-1 min-w-0">
+                      <p className="text-[8px] md:text-[9px] uppercase tracking-[0.2em] text-[#C5A059] font-medium">{p.category || 'Collection'}</p>
+                      <h4 className="font-serif text-sm md:text-xl tracking-wide text-stone-900 truncate">{p.name}</h4>
                     </div>
-                    <span className="text-md font-light text-stone-500">{p.price} $</span>
+                    <span className="text-xs md:text-md font-light text-stone-500">{p.price} $</span>
                   </div>
                 </div>
                 </TiltCard>
