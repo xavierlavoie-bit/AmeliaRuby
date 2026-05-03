@@ -1927,7 +1927,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                   </svg>
                 </a>
                 <a
-                  href="https://www.facebook.com/LaRubiaCara"
+                  href="https://www.facebook.com/profile.php?id=61583868189086"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Facebook"
