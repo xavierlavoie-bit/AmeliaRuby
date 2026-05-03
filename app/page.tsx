@@ -135,7 +135,20 @@ const fetchWithBackoff = async (url: string, options: any, retries = 5, delay = 
   }
 };
 
-const heroImages = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
+const heroImagesDesktop = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
+const heroImagesMobile = ['/hero-5.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
+
+// Femmes qui ont inspiré Amélia Ruby
+const inspirations = [
+  { name: 'Marguerite', src: '/femme-1.jpeg', bag: 'Sac Marguerite', story: "Marguerite était la grand-mère d'Amélia, brodeuse de profession dans un petit village du Québec. Ses doigts agiles savaient transformer le moindre fil en un poème silencieux. C'est en regardant ses mains qu'Amélia a compris que l'artisanat n'est pas un métier — c'est une manière d'aimer." },
+  { name: 'Clara', src: '/femme-2.jpeg', bag: 'Pochette Clara', story: "Clara enseignait la littérature française au lycée d'Amélia. Elle portait toujours la même petite pochette de cuir patiné, avec un livre dedans et une lettre qu'elle ne lisait jamais. Chaque pièce de la maison porte un peu de son élégance discrète." },
+  { name: 'Joséphine', src: '/femme-3.jpeg', bag: 'Cabas Joséphine', story: "Joséphine tenait une librairie indépendante rue Saint-Denis. Elle accueillait les jeunes femmes en leur offrant un thé et un conseil de lecture. Son cabas usé débordait toujours de manuscrits et de fleurs séchées — il a inspiré notre cabas iconique." },
+  { name: 'Adèle', src: '/femme-4.jpeg', bag: 'Sac Adèle', story: "Adèle voyageait seule, sans plan, juste un carnet et un sac. Elle disait qu'une femme bien équipée n'a besoin de rien d'autre que d'un cuir solide et d'un peu de courage. Ses mots résonnent dans chaque couture du Sac Adèle." },
+  { name: 'Léonie', src: '/femme-5.jpeg', bag: 'Pochette Léonie', story: "Léonie était danseuse à l'Opéra. Sa silhouette, sa grâce, sa rigueur — Amélia la regardait répéter pendant des heures. La Pochette Léonie est née d'un dessin griffonné en coulisses, entre deux pirouettes." },
+  { name: 'Camille', src: '/femme-6.jpeg', bag: 'Sac Camille', story: "Camille a été la première à croire au projet d'Amélia. Sage-femme de métier, elle disait que créer un sac était comme accompagner une naissance : il fallait de la patience, de l'écoute, et beaucoup d'amour." },
+  { name: 'Émilie', src: '/femme-7.jpeg', bag: 'Cabas Émilie', story: "Émilie peignait des toiles immenses dans un atelier baigné de lumière du nord. Elle ne vendait presque rien — elle créait pour le plaisir de créer. Cette philosophie est devenue celle de la maison Amélia Ruby." },
+  { name: 'Solène', src: '/femme-8.jpeg', bag: 'Sac Solène', story: "Solène était une amie d'enfance, partie trop tôt. Elle rêvait d'avoir une marque à elle. Ce sac porte son nom comme une promesse : que sa flamme continue à briller à travers le travail des artisanes d'aujourd'hui." },
+];
 
 export default function App() {
   // États Globaux
@@ -154,6 +167,9 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedInspiration, setSelectedInspiration] = useState<typeof inspirations[number] | null>(null);
+  const heroImages = isMobile ? heroImagesMobile : heroImagesDesktop;
   
   // États Boutique
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
@@ -202,11 +218,20 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Détection mobile pour choisir le set d'images du hero
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => { setIsMobile(mq.matches); setHeroIndex(0); };
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   // Slideshow hero
   useEffect(() => {
     const t = setInterval(() => setHeroIndex(i => (i + 1) % heroImages.length), 5500);
     return () => clearInterval(t);
-  }, []);
+  }, [heroImages.length]);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -1147,6 +1172,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         @keyframes kb1 { 0% { transform: scale(1) translate(0,0); } 100% { transform: scale(1.12) translate(-1.5%,-2%); } }
         @keyframes kb2 { 0% { transform: scale(1.06) translate(2%,1%); } 100% { transform: scale(1) translate(0,0); } }
         @keyframes kb3 { 0% { transform: scale(1) translate(-1%,2%); } 100% { transform: scale(1.1) translate(1%,-1%); } }
+        .hero-kb { animation: var(--kb-anim); }
         .text-shimmer { background: linear-gradient(135deg, #C5A059 0%, #E8C97A 55%, #B8913A 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         * { cursor: none !important; }
       `}</style>
@@ -1159,6 +1185,67 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
 
       {/* CURSEUR CUSTOM */}
       <CustomCursor />
+
+      {/* MODALE HISTOIRE D'UNE FEMME */}
+      <AnimatePresence>
+        {selectedInspiration && (
+          <div className="fixed inset-0 z-[180] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute inset-0 bg-black/85 backdrop-blur-md"
+              onClick={() => setSelectedInspiration(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+              className="relative w-full max-w-5xl bg-[#0F0F0F] flex flex-col md:flex-row overflow-hidden max-h-[92vh]"
+            >
+              <button
+                className="absolute top-5 right-5 z-50 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white transition-colors"
+                onClick={() => setSelectedInspiration(null)}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-full md:w-1/2 aspect-[3/4] md:aspect-auto bg-stone-900 overflow-hidden">
+                <img
+                  src={selectedInspiration.src}
+                  className="w-full h-full object-cover"
+                  alt={selectedInspiration.name}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.15'; }}
+                />
+              </div>
+
+              <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center space-y-8 overflow-y-auto">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-[1px] bg-[#C5A059]" />
+                    <p className="text-[9px] uppercase tracking-[0.5em] text-[#C5A059]">Une muse de la maison</p>
+                  </div>
+                  <h2 className="font-serif text-4xl md:text-6xl text-white italic leading-none">{selectedInspiration.name}</h2>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 pt-1">{selectedInspiration.bag}</p>
+                </div>
+
+                <div className="w-12 h-[1px] bg-[#C5A059]/30" />
+
+                <p className="font-serif text-white/80 leading-[2] text-sm md:text-base">
+                  {selectedInspiration.story}
+                </p>
+
+                <div className="pt-2">
+                  <p className="text-[8px] uppercase tracking-[0.4em] text-[#C5A059]/50">— Maison Amélia Ruby</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* MODALE PAIEMENT STRIPE */}
       {clientSecret && (
@@ -1302,8 +1389,8 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             >
               <img
                 src={src}
-                className="w-full h-full object-cover object-top"
-                style={{ animation: `kb${(i % 3) + 1} ${7 + i * 2}s ease-in-out infinite alternate` }}
+                className="w-full h-full object-cover object-[35%_top] md:object-top hero-kb"
+                style={{ ['--kb-anim' as any]: `kb${(i % 3) + 1} ${7 + i * 2}s ease-in-out infinite alternate` }}
                 alt=""
               />
             </div>
@@ -1410,7 +1497,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         <div style={{ animation: 'marquee 40s linear infinite', display: 'flex', width: 'max-content' }}>
           {[...Array(2)].map((_, i) => (
             <div key={i} className="flex items-center">
-              {['Haute Maroquinerie', 'Montréal', 'Fait à la Main', 'Pièces Uniques', 'Sur Mesure', 'Cuir Noble', "Artisanat d'Excellence", 'Créations Intemporelles', 'Atelier Purtell', 'Collection 2026'].map((text, j) => (
+              {['Chaque Sac, une Histoire', 'Haute Maroquinerie', 'Montréal', 'Fait à la Main', 'Pièces Uniques', 'Inspiré par Elles', 'Cuir Noble', "Artisanat d'Excellence", 'Créations Intemporelles', 'Atelier Amélia Ruby'].map((text, j) => (
                 <span key={j} className="flex items-center gap-8 px-8 text-[8px] uppercase tracking-[0.5em] text-white/25 whitespace-nowrap">
                   {text} <span className="w-1 h-1 rounded-full bg-[#C5A059] inline-block flex-shrink-0" />
                 </span>
@@ -1486,6 +1573,74 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             )})}
           </div>
         )}
+      </section>
+
+      {/* SECTION HISTOIRE DE LA MARQUE */}
+      <section className="bg-[#0F0F0F] py-24 md:py-32 overflow-hidden border-t border-stone-900 relative">
+        <div className="max-w-7xl mx-auto px-6 md:px-20 mb-16 md:mb-20">
+          <Reveal>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-6 h-[1px] bg-[#C5A059]" />
+              <p className="text-[9px] uppercase tracking-[0.5em] text-[#C5A059]">Notre Univers</p>
+            </div>
+            <h3 className="text-4xl md:text-6xl font-serif font-light text-white leading-[1.1] max-w-3xl">
+              Chaque sac a son <em className="not-italic text-shimmer">histoire</em>
+            </h3>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="text-stone-400 leading-[1.9] font-light text-sm md:text-base max-w-xl mt-8">
+              Derrière chaque création, le souvenir d'une femme qui a marqué Amélia Ruby. Ces portraits, ces vies, ces histoires sont l'âme silencieuse de chacune de nos pièces.
+            </p>
+          </Reveal>
+        </div>
+
+        {/* Carousel marquee — collage de portraits */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 w-20 md:w-40 z-10 bg-gradient-to-r from-[#0F0F0F] to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-20 md:w-40 z-10 bg-gradient-to-l from-[#0F0F0F] to-transparent pointer-events-none" />
+
+          <div className="flex hover:[animation-play-state:paused]" style={{ animation: 'marquee 80s linear infinite', width: 'max-content' }}>
+            {inspirations.concat(inspirations).map((p, i) => (
+              <div
+                key={i}
+                className={`flex-shrink-0 px-2 md:px-4 ${i % 3 === 0 ? 'pt-0' : i % 3 === 1 ? 'pt-10 md:pt-16' : 'pt-5 md:pt-8'}`}
+              >
+                <button
+                  onClick={() => setSelectedInspiration(p)}
+                  className="block w-[200px] md:w-[280px] aspect-[3/4] overflow-hidden bg-stone-800 group relative cursor-pointer text-left"
+                  aria-label={`Lire l'histoire de ${p.name}`}
+                >
+                  <img
+                    src={p.src}
+                    className="w-full h-full object-cover transition-all duration-[2s] grayscale-[20%] group-hover:grayscale-0 group-hover:scale-110"
+                    alt={p.name}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.15'; }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-500">
+                    <div className="w-5 h-[1px] bg-[#C5A059] transition-all duration-500 group-hover:w-10" />
+                    <p className="font-serif text-white text-xl md:text-2xl italic leading-tight">{p.name}</p>
+                    <p className="text-[8px] uppercase tracking-[0.3em] text-white/50">{p.bag}</p>
+                  </div>
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 border border-[#C5A059]/40 bg-[#0F0F0F]/60 backdrop-blur-sm px-3 py-1.5">
+                    <p className="text-[8px] uppercase tracking-[0.3em] text-[#C5A059]">Lire son histoire</p>
+                  </div>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Citation finale */}
+        <div className="max-w-3xl mx-auto px-6 md:px-20 mt-20 md:mt-28 text-center">
+          <Reveal>
+            <div className="w-px h-12 bg-[#C5A059]/30 mx-auto mb-8" />
+            <p className="font-serif italic text-white/80 text-lg md:text-xl leading-relaxed">
+              "Coudre une pièce, c'est tisser un fil entre deux femmes — celle qui m'a inspirée, et celle qui la portera."
+            </p>
+            <p className="text-[8px] uppercase tracking-[0.5em] text-[#C5A059]/60 mt-6">— Amélia Ruby</p>
+          </Reveal>
+        </div>
       </section>
 
       {/* SECTION IA - ATELIER SUR MESURE */}
@@ -1723,14 +1878,14 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             <div className="space-y-8">
               <div className="flex items-center justify-center gap-4">
                 <div className="w-12 h-[1px] bg-stone-200" />
-                <p className="text-[9px] uppercase tracking-[0.5em] text-stone-400">Votre Vision, Notre Expertise</p>
+                <p className="text-[9px] uppercase tracking-[0.5em] text-stone-400">Votre Histoire, Notre Atelier</p>
                 <div className="w-12 h-[1px] bg-stone-200" />
               </div>
               <h3 className="text-4xl md:text-6xl font-serif font-light leading-tight">
-                Une création<br /><em className="not-italic text-shimmer">rien que pour vous</em>
+                Écrivez votre<br /><em className="not-italic text-shimmer">propre chapitre</em>
               </h3>
               <p className="text-stone-400 font-light text-sm max-w-lg mx-auto leading-[2]">
-                De l'idée à la réalisation, nos artisans vous accompagnent dans la création de la pièce parfaite — celle que vous ne trouverez nulle part ailleurs.
+                Nous avons raconté l'histoire de celles qui nous ont marquées. Confiez-nous la vôtre — et nous la cousons dans une pièce qui n'appartiendra qu'à vous.
               </p>
             </div>
           </Reveal>
