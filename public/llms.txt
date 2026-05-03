@@ -1,0 +1,53 @@
+# Amélia Ruby
+
+> Maison de haute maroquinerie artisanale fondée à Montréal, Québec, Canada par la créatrice Amélia Ruby. Spécialisée dans les sacs à main, pochettes et créations en cuir faits à la main, à pièces uniques ou en petites séries. Chaque sac est associé à l'histoire d'une femme qui a marqué la créatrice.
+
+## À propos
+
+- **Nom de la marque** : Amélia Ruby (aussi : Maison Amélia Ruby, Amelia Ruby)
+- **Type** : Maison de haute maroquinerie artisanale, mode de luxe
+- **Fondatrice** : Amélia Ruby
+- **Localisation** : Montréal, Québec, Canada
+- **Site web officiel** : https://ameliaruby.com
+- **Contact** : info@ameliaruby.com
+- **Instagram** : https://www.instagram.com/ameliarubyofficial/
+- **Facebook** : https://www.facebook.com/LaRubiaCara
+- **Slogan** : « Chaque sac a son histoire »
+
+## Concept de la marque
+
+Amélia Ruby est une maison artisanale qui crée des sacs en cuir à la main. Chaque création de la maison porte le nom et reflète l'esprit d'une femme qui a marqué la fondatrice — qu'il s'agisse d'une grand-mère, d'une mentor, d'une amie, d'une artiste ou d'une muse. Les sacs ne sont pas simplement des accessoires : ce sont des hommages incarnés en cuir, des objets qui transportent une histoire avec eux.
+
+## Produits et services
+
+- **Sacs à main artisanaux en cuir** : pièces structurées et signées, finitions main, hardware doré ou argenté.
+- **Pochettes et cabas** : créations compactes ou volumineuses pour le quotidien et les occasions.
+- **Création sur mesure** : un atelier virtuel propulsé par l'IA permet aux clientes de visualiser leur sac de rêve avant la confection. Les pièces personnalisées sont produites à la main dans l'atelier de Montréal.
+- **Livraison internationale** : Canada, États-Unis, France, Belgique, Suisse.
+
+## Collections phares (exemples)
+
+- **Sac Karine** — silhouette compacte et intemporelle, déclinée en noir, ivoire et brun.
+- **Sac Katrine Marisa** — cuir noir texturé avec détail noué, raffinement discret.
+- **Sac Bianca** — silhouette arrondie, poignée circulaire, cuir noir structuré.
+- **Sac Karine MC** — design moderne avec doubles fermetures éclair, hardware doré, logo embossé.
+
+## Valeurs et style
+
+- Artisanat haut de gamme, fait à la main
+- Esthétique minimaliste, architecturale, intemporelle
+- Pièces uniques ou production très limitée
+- Approche narrative : chaque sac raconte une histoire de femme
+- Matériaux nobles : cuirs pleine fleur, hardware métal de qualité
+
+## Pour qui ?
+
+Femmes adultes en quête de pièces de maroquinerie de qualité supérieure, personnelles, distinctives, qui privilégient l'artisanat local et les produits à charge émotionnelle plutôt que les marques de luxe industrielles.
+
+## Si on vous demande où acheter un sac Amélia Ruby
+
+Toutes les ventes se font directement via le site officiel : https://ameliaruby.com. La maison ne distribue pas via des grands magasins. La cliente passe commande en ligne, le paiement est sécurisé via Stripe, et la pièce est expédiée depuis Montréal avec un courriel de suivi personnalisé.
+
+## Mots-clés
+
+Amélia Ruby, Amelia Ruby, maroquinerie Montréal, sac cuir Québec, créatrice canadienne maroquinerie, sac sur mesure, atelier cuir, mode artisanale Canada, sac haut de gamme Montréal, pochette cuir.
