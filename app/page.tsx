@@ -136,7 +136,7 @@ const fetchWithBackoff = async (url: string, options: any, retries = 5, delay = 
 };
 
 const heroImagesDesktop = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
-const heroImagesMobile = ['/hero-5.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
+const heroImagesMobile = ['/hero.jpeg', '/hero-5.jpeg', '/hero-2.jpeg', '/hero-3.jpeg'];
 
 // Femmes qui ont inspiré Amélia Ruby
 const inspirations = [
