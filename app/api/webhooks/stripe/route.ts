@@ -78,29 +78,49 @@ export async function POST(req: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const customerEmail = session.customer_details?.email || session.customer_email;
     const customerName = session.customer_details?.name || "Client";
+    const customerPhone = session.customer_details?.phone || null;
     const amount = (session.amount_total || 0) / 100;
-    
+
+    // Adresse de livraison (présente même via Apple Pay si shipping_address_collection est activé)
+    const shipping = (session as any).shipping_details || (session as any).collected_information?.shipping_details;
+    const shippingAddress = shipping?.address || session.customer_details?.address || null;
+    const shippingName = shipping?.name || customerName;
+
     const produits = session.metadata?.produits || "";
-    const cartItemsData = session.metadata?.cartItems || "[]"; 
-    
+    const cartItemsData = session.metadata?.cartItems || "[]";
+
     console.log(`📦 Données du panier reçues : ${cartItemsData}`);
+    if (shippingAddress) {
+      console.log(`📮 Adresse livraison : ${shippingAddress.line1}, ${shippingAddress.city}, ${shippingAddress.postal_code}, ${shippingAddress.country}`);
+    }
 
     if (customerEmail) {
       try {
         initAdmin();
-        
+
         // --- SAUVEGARDE FIREBASE CLIENT ---
         console.log("🔄 Sauvegarde du client dans Firebase...");
         await db.collection('clients').doc(session.id).set({
           nom: customerName,
           email: customerEmail,
+          telephone: customerPhone,
           totalDepense: amount,
           produits: produits,
           statut: 'À préparer',
           derniereCommande: new Date().toISOString(),
           accepteNewsletter: true,
           mode: session.livemode ? "production" : "test",
-          commandeId: session.id
+          commandeId: session.id,
+          // Adresse de livraison structurée
+          adresseLivraison: shippingAddress ? {
+            nom: shippingName,
+            ligne1: shippingAddress.line1 || null,
+            ligne2: shippingAddress.line2 || null,
+            ville: shippingAddress.city || null,
+            province: shippingAddress.state || null,
+            codePostal: shippingAddress.postal_code || null,
+            pays: shippingAddress.country || null,
+          } : null,
         }, { merge: true });
         console.log(`✅ Client sauvegardé avec succès (${customerEmail}).`);
 

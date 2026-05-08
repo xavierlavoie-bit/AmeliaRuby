@@ -986,6 +986,40 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                               <div className="flex-1 min-w-0">
                                 <p className="font-serif text-base truncate">{client.nom || '—'}</p>
                                 <p className="text-[10px] text-stone-400 mt-0.5 truncate">{client.email}</p>
+                                {client.telephone && (
+                                  <a
+                                    href={`tel:${client.telephone}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[10px] text-stone-500 mt-0.5 truncate flex items-center gap-1 hover:text-[#C5A059] transition-colors"
+                                  >
+                                    <span>📞</span>{client.telephone}
+                                  </a>
+                                )}
+                                {client.adresseLivraison && (
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([
+                                      client.adresseLivraison.ligne1,
+                                      client.adresseLivraison.ligne2,
+                                      client.adresseLivraison.ville,
+                                      client.adresseLivraison.province,
+                                      client.adresseLivraison.codePostal,
+                                      client.adresseLivraison.pays
+                                    ].filter(Boolean).join(', '))}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="block mt-1.5 px-2 py-1.5 bg-stone-50 hover:bg-amber-50 border border-stone-100 hover:border-[#C5A059]/30 transition-colors group/addr"
+                                  >
+                                    <p className="text-[8px] uppercase tracking-widest text-stone-400 group-hover/addr:text-[#C5A059] mb-0.5">📦 Adresse livraison</p>
+                                    <p className="text-[10px] text-stone-700 leading-snug">
+                                      {client.adresseLivraison.ligne1}
+                                      {client.adresseLivraison.ligne2 && <>, {client.adresseLivraison.ligne2}</>}
+                                      <br />
+                                      {[client.adresseLivraison.ville, client.adresseLivraison.province, client.adresseLivraison.codePostal].filter(Boolean).join(', ')}
+                                      {client.adresseLivraison.pays && <> · {client.adresseLivraison.pays}</>}
+                                    </p>
+                                  </a>
+                                )}
                                 {client.produits && (
                                   <p className="text-[10px] text-stone-400 mt-1.5 truncate italic">{client.produits}</p>
                                 )}
@@ -1174,7 +1208,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
 
   // --- RENDU BOUTIQUE ---
   return (
-    <div className="min-h-screen bg-[#FDFCFB] text-[#1C1C1C] font-sans selection:bg-[#C5A059] selection:text-white" style={{ cursor: 'none' }}>
+    <div className={`min-h-screen bg-[#FDFCFB] text-[#1C1C1C] font-sans selection:bg-[#C5A059] selection:text-white ${clientSecret ? 'cursor-auto-mode' : ''}`} style={{ cursor: clientSecret ? 'auto' : 'none' }}>
 
       {/* ANIMATIONS GLOBALES */}
       <style>{`
@@ -1190,6 +1224,9 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
         .hero-kb { animation: var(--kb-anim); }
         .text-shimmer { background: linear-gradient(135deg, #C5A059 0%, #E8C97A 55%, #B8913A 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         * { cursor: none !important; }
+        .cursor-auto-mode, .cursor-auto-mode * { cursor: auto !important; }
+        .cursor-auto-mode a, .cursor-auto-mode button, .cursor-auto-mode [role="button"] { cursor: pointer !important; }
+        .cursor-auto-mode input, .cursor-auto-mode textarea { cursor: text !important; }
       `}</style>
 
       {/* GRAIN OVERLAY */}
@@ -1198,8 +1235,8 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
       {/* BARRE DE PROGRESSION SCROLL */}
       <div className="fixed top-0 left-0 z-[201] h-[1px] bg-gradient-to-r from-[#C5A059] to-[#F0D68A] transition-[width] duration-150 ease-out" style={{ width: `${scrollProgress}%` }} />
 
-      {/* CURSEUR CUSTOM */}
-      <CustomCursor />
+      {/* CURSEUR CUSTOM (caché pendant le checkout Stripe) */}
+      {!clientSecret && <CustomCursor />}
 
       {/* MODALE HISTOIRE D'UNE FEMME */}
       <AnimatePresence>
