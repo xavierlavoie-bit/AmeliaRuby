@@ -11,8 +11,8 @@ import {
 
 // --- FIREBASE SETUP ---
 import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, collection, addDoc, onSnapshot, doc, 
+import {
+  getFirestore, collection, addDoc, onSnapshot, doc,
   updateDoc, deleteDoc, query, orderBy
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
@@ -184,7 +184,7 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[],
-    stockQuantity: 1, showFomo: false, isPublished: false
+    stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false
   });
 
   // États Admin - Suivi
@@ -214,6 +214,7 @@ export default function App() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
 
   // Détection mobile pour choisir le set d'images du hero
   useEffect(() => {
@@ -484,7 +485,7 @@ export default function App() {
         setIsEditing(null);
       } else {
         await addDoc(colRef, { ...newProduct, createdAt: Date.now() });
-        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false, isPublished: false });
+        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false });
       }
     } catch (err) { console.error("Save error", err); }
   };
@@ -789,6 +790,23 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                          type="checkbox" className="hidden"
                          checked={isEditing ? !!isEditing.isPublished : newProduct.isPublished}
                          onChange={e => isEditing ? setIsEditing({...isEditing, isPublished: e.target.checked}) : setNewProduct({...newProduct, isPublished: e.target.checked})}
+                       />
+                     </label>
+                   </div>
+
+                   <div className="flex items-center gap-3 px-3 py-3 bg-stone-50 border border-stone-100">
+                     <label className="flex items-center gap-3 cursor-pointer group flex-1">
+                       <div className={`w-4 h-4 border flex items-center justify-center transition-colors ${ (isEditing ? isEditing.isPreOrder : newProduct.isPreOrder) ? 'bg-amber-600 border-amber-600' : 'border-stone-300 group-hover:border-amber-600'}`}>
+                           {(isEditing ? isEditing.isPreOrder : newProduct.isPreOrder) && <CheckCircle2 size={12} className="text-white"/>}
+                       </div>
+                       <div className="flex flex-col gap-0.5">
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-stone-700 font-medium group-hover:text-black transition-colors">Mode pré-commande</span>
+                         <span className="text-[9px] text-stone-400 font-light">Le bouton « Ajouter au panier » devient « Pré-commander » pour cette pièce</span>
+                       </div>
+                       <input
+                         type="checkbox" className="hidden"
+                         checked={isEditing ? !!isEditing.isPreOrder : newProduct.isPreOrder}
+                         onChange={e => isEditing ? setIsEditing({...isEditing, isPreOrder: e.target.checked}) : setNewProduct({...newProduct, isPreOrder: e.target.checked})}
                        />
                      </label>
                    </div>
@@ -1210,10 +1228,10 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 <X size={18} />
               </button>
 
-              <div className="w-full md:w-1/2 aspect-[3/4] md:aspect-auto bg-stone-900 overflow-hidden">
+              <div className="w-full md:w-1/2 bg-stone-900 overflow-hidden flex items-center justify-center">
                 <img
                   src={selectedInspiration.src}
-                  className="w-full h-full object-cover"
+                  className="block w-full h-auto max-h-[55vh] object-contain md:h-full md:max-h-none md:object-cover"
                   alt={selectedInspiration.name}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.15'; }}
                 />
@@ -1336,7 +1354,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                     transition={{ type: 'spring', damping: 18, stiffness: 350 }}
                     className="w-full bg-[#1C1C1C] text-white py-5 text-[10px] uppercase tracking-[0.2em] font-medium hover:bg-[#C5A059] transition-colors shadow-lg flex items-center justify-center gap-2"
                   >
-                    {isCheckingOut ? <Loader2 size={16} className="animate-spin" /> : "Procéder au paiement"}
+                    {isCheckingOut ? <Loader2 size={16} className="animate-spin" /> : (cart.some(i => i.isPreOrder) ? "Pré-commander" : "Procéder au paiement")}
                   </motion.button>
                 </div>
               )}
@@ -1530,7 +1548,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 <div className="group" onClick={() => openProductModal(p)}>
                   <div className="relative aspect-[4/5] overflow-hidden bg-stone-50 mb-3 md:mb-8 shadow-sm rounded-sm">
                     {/* Image avec effet grayscale si épuisé */}
-                    <img src={p.images?.[0]} className={`w-full h-full object-cover transition-transform duration-[3s] ${isSoldOut ? 'grayscale-[60%] scale-100' : 'group-hover:scale-110'}`} alt={p.name} />
+                    <img src={p.images?.[0]} className={`w-full h-full object-contain md:object-cover transition-transform duration-[3s] ${isSoldOut ? 'grayscale-[60%] scale-100' : 'group-hover:scale-110'}`} alt={p.name} />
 
                     {/* Effet SOLD OUT / FOMO Badge */}
                     {isSoldOut ? (
@@ -1797,11 +1815,11 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-            className="relative w-full max-w-6xl bg-white flex flex-col md:flex-row overflow-hidden rounded-sm max-h-[95vh]">
-            <button className="absolute top-6 right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
-            
+            className="relative w-full max-w-7xl bg-white flex flex-col md:flex-row overflow-y-auto md:overflow-hidden rounded-sm max-h-[95vh]">
+            <button className="fixed md:absolute top-6 right-6 z-[60] p-2 bg-white/90 backdrop-blur-md rounded-full shadow-md" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
+
             <div
-              className="w-full md:w-3/5 bg-stone-50 relative aspect-square md:aspect-auto md:h-auto overflow-hidden group/gal select-none"
+              className="w-full md:w-3/5 bg-stone-50 sticky top-0 md:static md:h-auto md:overflow-hidden select-none flex items-center justify-center h-[78vh] md:h-auto md:p-6"
               onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
               onTouchEnd={(e) => {
                 if (touchStartXRef.current === null || !selectedProduct.images || selectedProduct.images.length <= 1) return;
@@ -1813,51 +1831,56 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 touchStartXRef.current = null;
               }}
             >
-              <img
-                src={selectedProduct.images?.[currentImageIndex]}
-                className={`w-full h-full object-contain md:object-cover transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`}
-                alt=""
-                draggable={false}
-              />
-              {selectedProduct.images?.length > 1 && (
-                <>
-                  {/* Chevrons : toujours visibles sur mobile, hover sur desktop */}
-                  <button
-                    onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
-                    className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 p-2 md:p-3 bg-white/80 md:bg-white/50 backdrop-blur-md rounded-full shadow-md md:shadow-none md:opacity-0 md:group-hover/gal:opacity-100 transition-opacity"
-                    aria-label="Image précédente"
-                  >
-                    <ChevronLeft size={18}/>
-                  </button>
-                  <button
-                    onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
-                    className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 p-2 md:p-3 bg-white/80 md:bg-white/50 backdrop-blur-md rounded-full shadow-md md:shadow-none md:opacity-0 md:group-hover/gal:opacity-100 transition-opacity"
-                    aria-label="Image suivante"
-                  >
-                    <ChevronRight size={18}/>
-                  </button>
+              {/* Wrapper qui se cale exactement sur la taille rendue de l'image */}
+              <div className="relative inline-block max-w-full max-h-full md:h-full group/gal">
+                <img
+                  src={selectedProduct.images?.[currentImageIndex]}
+                  className={`block max-w-full max-h-full w-auto h-auto object-contain md:h-full md:w-auto md:max-w-full md:max-h-full transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`}
+                  alt=""
+                  draggable={false}
+                />
+                {selectedProduct.images?.length > 1 && (
+                  <>
+                    {/* Chevrons : desktop uniquement (mobile = swipe), positionnés sur les bords de la photo */}
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                      className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 p-3 bg-white backdrop-blur-md rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 items-center justify-center"
+                      aria-label="Image précédente"
+                    >
+                      <ChevronLeft size={20}/>
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                      className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-white backdrop-blur-md rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 items-center justify-center"
+                      aria-label="Image suivante"
+                    >
+                      <ChevronRight size={20}/>
+                    </button>
 
-                  {/* Compteur image (mobile uniquement) */}
-                  <div className="md:hidden absolute top-3 left-3 bg-black/60 text-white text-[9px] uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm">
-                    {currentImageIndex + 1} / {selectedProduct.images.length}
-                  </div>
+                    {/* Compteur image (mobile uniquement) */}
+                    <div className="md:hidden absolute top-3 left-3 bg-black/60 text-white text-[9px] uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm">
+                      {currentImageIndex + 1} / {selectedProduct.images.length}
+                    </div>
 
-                  {/* Dots indicateurs (mobile uniquement) */}
-                  <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-full">
-                    {selectedProduct.images.map((_: string, i: number) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentImageIndex(i)}
-                        className={`h-1.5 rounded-full transition-all ${i === currentImageIndex ? 'w-6 bg-[#C5A059]' : 'w-1.5 bg-white/60'}`}
-                        aria-label={`Image ${i + 1}`}
-                      />
+                    {/* Dots indicateurs (mobile uniquement) */}
+                    <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-full">
+                      {selectedProduct.images.map((_: string, i: number) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentImageIndex(i)}
+                          className={`h-1.5 rounded-full transition-all ${i === currentImageIndex ? 'w-6 bg-[#C5A059]' : 'w-1.5 bg-white/60'}`}
+                          aria-label={`Image ${i + 1}`}
+                        />
                     ))}
                   </div>
                 </>
               )}
+              </div>
             </div>
-            
-            <div className="w-full md:w-2/5 p-10 md:p-16 flex flex-col justify-between bg-[#FDFCFB] overflow-y-auto">
+
+            <div className="w-full md:w-2/5 px-8 pt-8 pb-10 md:p-16 flex flex-col justify-between bg-[#FDFCFB] md:overflow-y-auto relative z-10 -mt-8 md:mt-0 rounded-t-3xl md:rounded-none shadow-[0_-20px_40px_-10px_rgba(0,0,0,0.15)] md:shadow-none">
+              {/* Indicateur swipe (mobile uniquement) */}
+              <div className="md:hidden w-12 h-1 bg-stone-300 rounded-full mx-auto -mt-3 mb-6" />
               <div className="space-y-8">
                 <div className="space-y-4">
                   <p className="uppercase tracking-[0.4em] text-[10px] text-[#C5A059] font-semibold">{selectedProduct.category}</p>
@@ -1900,7 +1923,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                   </button>
                 ) : (
                   <button onClick={() => addToCart(selectedProduct)} className="w-full bg-[#1C1C1C] text-white py-6 text-[10px] uppercase tracking-[0.3em] font-medium hover:bg-[#C5A059] transition-all shadow-xl group flex items-center justify-center gap-4">
-                    Ajouter au panier <ShoppingBag size={14} />
+                    {selectedProduct.isPreOrder ? 'Pré-commander' : 'Ajouter au panier'} <ShoppingBag size={14} />
                   </button>
                 )}
               </div>
