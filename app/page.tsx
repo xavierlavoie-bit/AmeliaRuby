@@ -165,6 +165,7 @@ export default function App() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedInspiration, setSelectedInspiration] = useState<typeof inspirations[number] | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
   const heroImages = isMobile ? heroImagesMobile : heroImagesDesktop;
   
   // États Boutique
@@ -729,8 +730,8 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                      className="w-full border-b py-2 focus:border-[#C5A059] outline-none font-light"
                    />
                    <div className="grid grid-cols-2 gap-4">
-                     <input 
-                       type="number" placeholder="Prix ($ CAD)" required
+                     <input
+                       type="number" placeholder="Prix ($ CAD)" required step="0.01" min="0"
                        value={isEditing ? isEditing.price : newProduct.price}
                        onChange={e => {
                          const val = e.target.value === '' ? '' : Number(e.target.value);
@@ -1799,16 +1800,59 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
             className="relative w-full max-w-6xl bg-white flex flex-col md:flex-row overflow-hidden rounded-sm max-h-[95vh]">
             <button className="absolute top-6 right-6 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm" onClick={() => setSelectedProduct(null)}><X size={20} /></button>
             
-            <div className="w-full md:w-3/5 bg-stone-50 relative h-[400px] md:h-auto overflow-hidden group/gal">
-              <img 
-                src={selectedProduct.images?.[currentImageIndex]} 
-                className={`w-full h-full object-cover transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`} 
-                alt="" 
+            <div
+              className="w-full md:w-3/5 bg-stone-50 relative aspect-square md:aspect-auto md:h-auto overflow-hidden group/gal select-none"
+              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                if (touchStartXRef.current === null || !selectedProduct.images || selectedProduct.images.length <= 1) return;
+                const diff = touchStartXRef.current - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 50) {
+                  if (diff > 0) setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1));
+                  else setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1));
+                }
+                touchStartXRef.current = null;
+              }}
+            >
+              <img
+                src={selectedProduct.images?.[currentImageIndex]}
+                className={`w-full h-full object-contain md:object-cover transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`}
+                alt=""
+                draggable={false}
               />
               {selectedProduct.images?.length > 1 && (
                 <>
-                  <button onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))} className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-white/50 backdrop-blur-md rounded-full opacity-0 group-hover/gal:opacity-100 transition-opacity"><ChevronLeft size={20}/></button>
-                  <button onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))} className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-white/50 backdrop-blur-md rounded-full opacity-0 group-hover/gal:opacity-100 transition-opacity"><ChevronRight size={20}/></button>
+                  {/* Chevrons : toujours visibles sur mobile, hover sur desktop */}
+                  <button
+                    onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                    className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 p-2 md:p-3 bg-white/80 md:bg-white/50 backdrop-blur-md rounded-full shadow-md md:shadow-none md:opacity-0 md:group-hover/gal:opacity-100 transition-opacity"
+                    aria-label="Image précédente"
+                  >
+                    <ChevronLeft size={18}/>
+                  </button>
+                  <button
+                    onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 p-2 md:p-3 bg-white/80 md:bg-white/50 backdrop-blur-md rounded-full shadow-md md:shadow-none md:opacity-0 md:group-hover/gal:opacity-100 transition-opacity"
+                    aria-label="Image suivante"
+                  >
+                    <ChevronRight size={18}/>
+                  </button>
+
+                  {/* Compteur image (mobile uniquement) */}
+                  <div className="md:hidden absolute top-3 left-3 bg-black/60 text-white text-[9px] uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm">
+                    {currentImageIndex + 1} / {selectedProduct.images.length}
+                  </div>
+
+                  {/* Dots indicateurs (mobile uniquement) */}
+                  <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-full">
+                    {selectedProduct.images.map((_: string, i: number) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentImageIndex(i)}
+                        className={`h-1.5 rounded-full transition-all ${i === currentImageIndex ? 'w-6 bg-[#C5A059]' : 'w-1.5 bg-white/60'}`}
+                        aria-label={`Image ${i + 1}`}
+                      />
+                    ))}
+                  </div>
                 </>
               )}
             </div>
