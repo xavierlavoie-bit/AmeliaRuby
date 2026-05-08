@@ -1841,7 +1841,7 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                 />
                 {selectedProduct.images?.length > 1 && (
                   <>
-                    {/* Chevrons : desktop uniquement (mobile = swipe), positionnés sur les bords de la photo */}
+                    {/* Chevrons desktop (gros) */}
                     <button
                       onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
                       className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 p-3 bg-white backdrop-blur-md rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 items-center justify-center"
@@ -1855,6 +1855,22 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                       aria-label="Image suivante"
                     >
                       <ChevronRight size={20}/>
+                    </button>
+
+                    {/* Petites flèches mobile */}
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                      className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/85 backdrop-blur-sm rounded-full shadow-md z-40 flex items-center justify-center active:scale-95 transition-transform"
+                      aria-label="Image précédente"
+                    >
+                      <ChevronLeft size={14}/>
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                      className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/85 backdrop-blur-sm rounded-full shadow-md z-40 flex items-center justify-center active:scale-95 transition-transform"
+                      aria-label="Image suivante"
+                    >
+                      <ChevronRight size={14}/>
                     </button>
 
                     {/* Compteur image (mobile uniquement) */}
@@ -1871,10 +1887,10 @@ This brief defines EVERYTHING: the item type, colors, materials, textures, hardw
                           className={`h-1.5 rounded-full transition-all ${i === currentImageIndex ? 'w-6 bg-[#C5A059]' : 'w-1.5 bg-white/60'}`}
                           aria-label={`Image ${i + 1}`}
                         />
-                    ))}
-                  </div>
-                </>
-              )}
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
