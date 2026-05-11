@@ -38,8 +38,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId || 'default-app-id';
 
-// --- API KEY GEMINI ---
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+// --- GEMINI : appel via la route serveur /api/generate-image (clé API côté serveur uniquement)
 
 // --- COMPOSANT DE RÉVÉLATION ---
 const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
@@ -579,59 +578,40 @@ export default function App() {
     allUserRequests.push(userMessage);
 
     const designBrief = allUserRequests.join(" | ");
-    const safePrompt = `Luxury fashion editorial product photography. A single bespoke artisan leather creation, custom-designed for a client of the Amelia Ruby atelier. This is a dream bag visualization — the design, colors, materials, and details are entirely defined by the client brief below.
-
-PHOTOGRAPHY STYLE: High-end studio shot, Chanel / Bottega Veneta editorial level. Rembrandt lighting from upper-left, soft fill light from right. Pure white seamless background. Camera angle: 3/4 elevated view showing front and one side. Macro-sharp focus on leather grain, stitching, and hardware. Shallow depth of field on background. Photorealistic, medium format camera quality.
-
-BRANDING — MANDATORY: The bag must display the "AR" monogram in TWO ways: (1) A small debossed "AR" lettermark pressed directly into the leather on the front center panel — elegant blind embossing, same color as the leather, subtle but visible. (2) A small polished gold metal charm or plate engraved with "AR" attached to a zipper pull, D-ring, or strap hardware. Both brand marks must be clearly legible and look like a real luxury house signature.
-
-CRAFTSMANSHIP DNA: Artisan atelier quality. Fine hand-stitching. Premium hardware (gold, silver, aged brass, or as requested). Structured or supple silhouette depending on the brief.
-
-STRICT RULES: No watermarks, no resolution badges, no other brand names. Do not replicate exact silhouettes of Chanel, Hermès, Louis Vuitton, or Gucci — original design only.
-
-CLIENT DESIGN BRIEF: "${designBrief}".
-This brief defines EVERYTHING: the item type, colors, materials, textures, hardware finish, style, mood. Read it carefully and translate it into one single, cohesive, breathtaking luxury piece. Make it look real, handcrafted, and utterly desirable.`;
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-      
-      const response = await fetchWithBackoff(url, {
+      const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instances: [{ prompt: safePrompt }], 
-          parameters: { sampleCount: 1 }
-        })
+        body: JSON.stringify({ designBrief }),
       });
 
+      if (response.status === 429) {
+        setChatMessages(prev => [...prev, { role: 'bot', type: 'text', content: "Vous avez atteint la limite de créations pour le moment. Réessayez dans 30 minutes." }]);
+        return;
+      }
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Détails de l'erreur de l'API :", errorText);
-        throw new Error(`Erreur API (${response.status}): ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        console.error("Erreur API :", errorData);
+        throw new Error(errorData.error || `Erreur API (${response.status})`);
       }
 
       const data = await response.json();
-      
-      if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
-        const imageUrl = `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
-        setLatestImage(imageUrl); 
+      if (data.imageUrl) {
+        setLatestImage(data.imageUrl);
         setChatMessages(prev => [
-          ...prev, 
-          { role: 'bot', type: 'image', content: imageUrl },
+          ...prev,
+          { role: 'bot', type: 'image', content: data.imageUrl },
           { role: 'bot', type: 'text', content: 'Voici une nouvelle interprétation intégrant vos dernières envies. Si cette direction vous plaît, nous pouvons l\'affiner avec notre artisan.' }
         ]);
       } else {
-         throw new Error("Format de réponse invalide provenant de l'API.");
+        throw new Error("Format de réponse invalide.");
       }
 
     } catch (error: any) {
-      console.error("Erreur complète :", error);
-      
-      if (!apiKey || apiKey === "") {
-        setChatMessages(prev => [...prev, { role: 'bot', type: 'text', content: `⚠️ Erreur système : Clé d'API Gemini manquante pour l'atelier virtuel.` }]);
-      } else {
-        setChatMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Notre artisan rencontre une difficulté à visualiser ces nouveaux détails. N'hésitez pas à reformuler ou à démarrer une nouvelle toile.` }]);
-      }
+      console.error("Erreur génération :", error);
+      setChatMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Notre artisan rencontre une difficulté à visualiser ces nouveaux détails. N'hésitez pas à reformuler ou à démarrer une nouvelle toile.` }]);
     } finally {
       setIsGeneratingImage(false);
     }
