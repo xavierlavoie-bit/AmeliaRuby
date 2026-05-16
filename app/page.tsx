@@ -183,7 +183,8 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[],
-    stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false
+    stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false,
+    colorVariants: [] as { name: string; image: string; stockQuantity: number }[],
   });
 
   // États Admin - Suivi
@@ -335,17 +336,34 @@ export default function App() {
       return;
     }
 
-    const productColors = product.colors ? product.colors.split(',').map((c:string) => c.trim()).filter(Boolean) : [];
-    if (productColors.length > 0 && !selectedColor) {
+    const variants = Array.isArray(product.colorVariants) ? product.colorVariants : [];
+    const hasVariants = variants.length > 0;
+    const legacyColors = product.colors ? product.colors.split(',').map((c:string) => c.trim()).filter(Boolean) : [];
+    const needsColor = hasVariants || legacyColors.length > 0;
+
+    if (needsColor && !selectedColor) {
       alert("Veuillez sélectionner une couleur.");
       return;
     }
 
-    // Vérifier que l'ajout ne dépasse pas le stock global pour ce modèle
-    const currentCartQtyForProduct = cart.filter(i => i.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
-    if (product.stockQuantity !== undefined && currentCartQtyForProduct >= product.stockQuantity) {
-      alert(`Notre atelier ne dispose plus que de ${product.stockQuantity} exemplaire(s) de cette pièce.`);
-      return;
+    // Vérifier le stock — par variante si applicable, sinon global
+    if (hasVariants) {
+      const variant = variants.find((v: any) => v.name === selectedColor);
+      if (!variant || variant.stockQuantity <= 0) {
+        alert(`La couleur "${selectedColor}" est malheureusement épuisée.`);
+        return;
+      }
+      const currentCartQty = cart.filter(i => i.id === product.id && i.selectedColor === selectedColor).reduce((sum, item) => sum + item.quantity, 0);
+      if (currentCartQty >= variant.stockQuantity) {
+        alert(`Notre atelier ne dispose plus que de ${variant.stockQuantity} exemplaire(s) de cette pièce en ${selectedColor}.`);
+        return;
+      }
+    } else {
+      const currentCartQtyForProduct = cart.filter(i => i.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+      if (product.stockQuantity !== undefined && currentCartQtyForProduct >= product.stockQuantity) {
+        alert(`Notre atelier ne dispose plus que de ${product.stockQuantity} exemplaire(s) de cette pièce.`);
+        return;
+      }
     }
 
     setCart(prev => {
@@ -484,7 +502,7 @@ export default function App() {
         setIsEditing(null);
       } else {
         await addDoc(colRef, { ...newProduct, createdAt: Date.now() });
-        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false });
+        setNewProduct({ name: '', price: '', description: '', category: 'Sac à main', colors: '', images: [] as string[], stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false, colorVariants: [] });
       }
     } catch (err) { console.error("Save error", err); }
   };
@@ -791,12 +809,101 @@ export default function App() {
                      </label>
                    </div>
 
-                   <input 
-                     type="text" placeholder="Couleurs (ex: Noir, Camel, Nude)"
-                     value={isEditing ? isEditing.colors : newProduct.colors}
-                     onChange={e => isEditing ? setIsEditing({...isEditing, colors: e.target.value}) : setNewProduct({...newProduct, colors: e.target.value})}
-                     className="w-full border-b py-2 focus:border-[#C5A059] outline-none font-light"
-                   />
+                   {/* VARIANTES DE COULEUR — nom + image + stock par couleur */}
+                   <div className="space-y-3 border-t border-stone-100 pt-4">
+                     <div className="flex items-center justify-between">
+                       <label className="text-[10px] uppercase tracking-widest text-[#C5A059] font-bold">Variantes de couleur</label>
+                       <button
+                         type="button"
+                         onClick={() => {
+                           const variants = (isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [];
+                           const updated = [...variants, { name: '', image: '', stockQuantity: 1 }];
+                           if (isEditing) setIsEditing({ ...isEditing, colorVariants: updated });
+                           else setNewProduct({ ...newProduct, colorVariants: updated });
+                         }}
+                         className="text-[9px] uppercase tracking-widest text-stone-500 hover:text-[#C5A059] flex items-center gap-1 transition-colors"
+                       >
+                         <Plus size={11}/> Ajouter
+                       </button>
+                     </div>
+                     {((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || []).length === 0 ? (
+                       <p className="text-[9px] text-stone-300 italic py-2">Aucune variante. Ajoutez les couleurs disponibles avec leur image et stock.</p>
+                     ) : (
+                       <div className="space-y-3">
+                         {((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || []).map((variant: any, vIdx: number) => (
+                           <div key={vIdx} className="flex items-start gap-3 bg-stone-50 p-3 border border-stone-100">
+                             {/* Mini-thumbnail + upload */}
+                             <label className="w-16 h-16 bg-white border border-stone-200 flex items-center justify-center cursor-pointer hover:border-[#C5A059] transition-colors relative overflow-hidden flex-shrink-0">
+                               {variant.image ? (
+                                 <img src={variant.image} className="w-full h-full object-cover" alt={variant.name} />
+                               ) : (
+                                 <span className="text-[8px] uppercase tracking-widest text-stone-300 text-center px-1">Photo</span>
+                               )}
+                               <input
+                                 type="file"
+                                 accept="image/*"
+                                 className="hidden"
+                                 onChange={(e) => {
+                                   const file = e.target.files?.[0];
+                                   if (!file) return;
+                                   const reader = new FileReader();
+                                   reader.onload = (ev) => {
+                                     const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                     variants[vIdx] = { ...variants[vIdx], image: ev.target?.result as string };
+                                     if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                     else setNewProduct({ ...newProduct, colorVariants: variants });
+                                   };
+                                   reader.readAsDataURL(file);
+                                 }}
+                               />
+                             </label>
+                             <div className="flex-1 space-y-2 min-w-0">
+                               <input
+                                 type="text"
+                                 placeholder="Nom (ex: Noir, Ivoire)"
+                                 value={variant.name}
+                                 onChange={(e) => {
+                                   const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                   variants[vIdx] = { ...variants[vIdx], name: e.target.value };
+                                   if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                   else setNewProduct({ ...newProduct, colorVariants: variants });
+                                 }}
+                                 className="w-full border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
+                               />
+                               <div className="flex items-center gap-2">
+                                 <span className="text-[9px] uppercase tracking-widest text-stone-400 flex-shrink-0">Stock</span>
+                                 <input
+                                   type="number"
+                                   min="0"
+                                   value={variant.stockQuantity}
+                                   onChange={(e) => {
+                                     const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                     variants[vIdx] = { ...variants[vIdx], stockQuantity: Number(e.target.value) || 0 };
+                                     if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                     else setNewProduct({ ...newProduct, colorVariants: variants });
+                                   }}
+                                   className="w-20 border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
+                                 />
+                               </div>
+                             </div>
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                 variants.splice(vIdx, 1);
+                                 if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                 else setNewProduct({ ...newProduct, colorVariants: variants });
+                               }}
+                               className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0 mt-1"
+                               aria-label="Retirer cette couleur"
+                             >
+                               <Trash2 size={14}/>
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
                    <textarea 
                      placeholder="Histoire et détails de la pièce..." rows={4}
                      value={isEditing ? isEditing.description : newProduct.description}
@@ -881,7 +988,27 @@ export default function App() {
                          >
                            {isPub ? '● En ligne' : '○ Hors ligne'}
                          </button>
-                         <button onClick={() => setIsEditing(p)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-900 flex items-center gap-1"><Settings size={10}/> Modif.</button>
+                         <button onClick={() => {
+                           // Migration auto: si l'ancien format (colors string) sans colorVariants -> convertir
+                           const migrated = { ...p };
+                           if (!Array.isArray(p.colorVariants) || p.colorVariants.length === 0) {
+                             const oldColors = (p.colors || '').split(',').map((c: string) => c.trim()).filter(Boolean);
+                             if (oldColors.length > 0) {
+                               const fallbackImage = p.images?.[0] || '';
+                               const totalStock = p.stockQuantity ?? 0;
+                               const baseShare = Math.floor(totalStock / oldColors.length);
+                               const remainder = totalStock - (baseShare * oldColors.length);
+                               migrated.colorVariants = oldColors.map((name: string, i: number) => ({
+                                 name,
+                                 image: fallbackImage,
+                                 stockQuantity: baseShare + (i < remainder ? 1 : 0),
+                               }));
+                             } else {
+                               migrated.colorVariants = [];
+                             }
+                           }
+                           setIsEditing(migrated);
+                         }} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-900 flex items-center gap-1"><Settings size={10}/> Modif.</button>
                          <button onClick={() => deleteProduct(p.id)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-red-600 flex items-center gap-1"><Trash2 size={10}/> Suppr.</button>
                        </div>
                      </div>
@@ -1185,6 +1312,18 @@ export default function App() {
       </div>
     );
   }
+
+  // --- IMAGES À AFFICHER : si une couleur est sélectionnée et a sa propre image, on la met en premier
+  const displayImages: string[] = (() => {
+    if (!selectedProduct) return [];
+    const base: string[] = selectedProduct.images || [];
+    if (!Array.isArray(selectedProduct.colorVariants)) return base;
+    const variant = selectedProduct.colorVariants.find((v: any) => v.name === selectedColor);
+    if (variant?.image && !base.includes(variant.image)) {
+      return [variant.image, ...base];
+    }
+    return base;
+  })();
 
   // --- RENDU BOUTIQUE ---
   return (
@@ -1840,11 +1979,11 @@ export default function App() {
               className="w-full md:w-3/5 bg-stone-50 sticky top-0 md:static md:h-auto md:overflow-hidden select-none flex items-center justify-center h-[78vh] md:h-auto md:p-6"
               onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
               onTouchEnd={(e) => {
-                if (touchStartXRef.current === null || !selectedProduct.images || selectedProduct.images.length <= 1) return;
+                if (touchStartXRef.current === null || displayImages.length <= 1) return;
                 const diff = touchStartXRef.current - e.changedTouches[0].clientX;
                 if (Math.abs(diff) > 50) {
-                  if (diff > 0) setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1));
-                  else setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1));
+                  if (diff > 0) setCurrentImageIndex(prev => (prev === displayImages.length - 1 ? 0 : prev + 1));
+                  else setCurrentImageIndex(prev => (prev === 0 ? displayImages.length - 1 : prev - 1));
                 }
                 touchStartXRef.current = null;
               }}
@@ -1852,23 +1991,23 @@ export default function App() {
               {/* Wrapper qui se cale exactement sur la taille rendue de l'image */}
               <div className="relative inline-block max-w-full max-h-full md:h-full group/gal">
                 <img
-                  src={selectedProduct.images?.[currentImageIndex]}
+                  src={displayImages[Math.min(currentImageIndex, displayImages.length - 1)] || displayImages[0]}
                   className={`block max-w-full max-h-full w-auto h-auto object-contain md:h-full md:w-auto md:max-w-full md:max-h-full transition-all duration-700 ${selectedProduct.stockQuantity !== undefined && selectedProduct.stockQuantity <= 0 ? 'grayscale-[40%]' : ''}`}
                   alt=""
                   draggable={false}
                 />
-                {selectedProduct.images?.length > 1 && (
+                {displayImages.length > 1 && (
                   <>
                     {/* Chevrons desktop (gros) */}
                     <button
-                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? displayImages.length - 1 : prev - 1))}
                       className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 p-3 bg-white backdrop-blur-md rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 items-center justify-center"
                       aria-label="Image précédente"
                     >
                       <ChevronLeft size={20}/>
                     </button>
                     <button
-                      onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                      onClick={() => setCurrentImageIndex(prev => (prev === displayImages.length - 1 ? 0 : prev + 1))}
                       className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-white backdrop-blur-md rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 items-center justify-center"
                       aria-label="Image suivante"
                     >
@@ -1877,14 +2016,14 @@ export default function App() {
 
                     {/* Petites flèches mobile */}
                     <button
-                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                      onClick={() => setCurrentImageIndex(prev => (prev === 0 ? displayImages.length - 1 : prev - 1))}
                       className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/85 backdrop-blur-sm rounded-full shadow-md z-40 flex items-center justify-center active:scale-95 transition-transform"
                       aria-label="Image précédente"
                     >
                       <ChevronLeft size={14}/>
                     </button>
                     <button
-                      onClick={() => setCurrentImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                      onClick={() => setCurrentImageIndex(prev => (prev === displayImages.length - 1 ? 0 : prev + 1))}
                       className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/85 backdrop-blur-sm rounded-full shadow-md z-40 flex items-center justify-center active:scale-95 transition-transform"
                       aria-label="Image suivante"
                     >
@@ -1893,12 +2032,12 @@ export default function App() {
 
                     {/* Compteur image (mobile uniquement) */}
                     <div className="md:hidden absolute top-3 left-3 bg-black/60 text-white text-[9px] uppercase tracking-widest px-3 py-1 rounded-full backdrop-blur-sm">
-                      {currentImageIndex + 1} / {selectedProduct.images.length}
+                      {Math.min(currentImageIndex, displayImages.length - 1) + 1} / {displayImages.length}
                     </div>
 
                     {/* Dots indicateurs (mobile uniquement) */}
                     <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-full">
-                      {selectedProduct.images.map((_: string, i: number) => (
+                      {displayImages.map((_: string, i: number) => (
                         <button
                           key={i}
                           onClick={() => setCurrentImageIndex(i)}
@@ -1935,7 +2074,59 @@ export default function App() {
                   )}
                 </div>
 
-                {selectedProduct.colors && (
+                {/* VARIANTES DE COULEUR — nouveau format (image + stock par couleur) */}
+                {Array.isArray(selectedProduct.colorVariants) && selectedProduct.colorVariants.length > 0 ? (
+                  <div className="space-y-3 border-t border-stone-100 pt-6">
+                    {(() => {
+                      const active = selectedProduct.colorVariants.find((v: any) => v.name === selectedColor);
+                      const isVariantOut = active ? active.stockQuantity <= 0 : false;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-medium">Couleur : <span className="text-stone-900">{selectedColor || '—'}</span></p>
+                            {active && (
+                              <span className={`text-[9px] uppercase tracking-widest ${isVariantOut ? 'text-red-700' : 'text-[#C5A059]'}`}>
+                                {isVariantOut ? 'Épuisé' : `${active.stockQuantity} en stock`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProduct.colorVariants.map((variant: any, idx: number) => {
+                              const variantOut = variant.stockQuantity <= 0;
+                              const isActive = selectedColor === variant.name;
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    setSelectedColor(variant.name);
+                                    // L'image de la variante est prépendue dans displayImages -> on saute à l'index 0
+                                    if (variant.image) setCurrentImageIndex(0);
+                                  }}
+                                  disabled={variantOut}
+                                  className={`flex items-center gap-2 px-3 py-2 text-[10px] uppercase tracking-widest border transition-all ${
+                                    isActive
+                                      ? 'border-[#C5A059] bg-[#C5A059]/10 text-[#C5A059]'
+                                      : variantOut
+                                        ? 'border-stone-100 text-stone-300 cursor-not-allowed opacity-60'
+                                        : 'border-stone-200 text-stone-500 hover:border-[#C5A059] hover:text-[#C5A059]'
+                                  }`}
+                                >
+                                  {variant.image && (
+                                    <span className="w-6 h-6 bg-stone-100 overflow-hidden inline-block flex-shrink-0">
+                                      <img src={variant.image} className={`w-full h-full object-cover ${variantOut ? 'grayscale' : ''}`} alt={variant.name} />
+                                    </span>
+                                  )}
+                                  <span>{variant.name}{variantOut && ' · épuisé'}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : selectedProduct.colors ? (
+                  // LEGACY : ancien format string sans variantes
                   <div className="space-y-3 border-t border-stone-100 pt-6">
                     <p className="text-[10px] uppercase tracking-widest text-stone-500 font-medium">Couleur : <span className="text-stone-900">{selectedColor}</span></p>
                     <div className="flex flex-wrap gap-2">
@@ -1946,7 +2137,7 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null}
                 <p className="whitespace-pre-wrap italic text-stone-500 font-light leading-relaxed pt-2">{selectedProduct.description}</p>
               </div>
 
