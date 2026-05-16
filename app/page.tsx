@@ -134,6 +134,15 @@ const fetchWithBackoff = async (url: string, options: any, retries = 5, delay = 
   }
 };
 
+// Normalise une variante de couleur : retourne toujours un tableau d'images,
+// y compris pour l'ancien format (image: string).
+const getVariantImages = (variant: any): string[] => {
+  if (!variant) return [];
+  if (Array.isArray(variant.images) && variant.images.length > 0) return variant.images.filter(Boolean);
+  if (variant.image) return [variant.image];
+  return [];
+};
+
 const heroImagesDesktop = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg', '/hero-4.jpeg'];
 const heroImagesMobile = ['/hero.jpeg', '/hero-2.jpeg', '/hero-3.jpeg', '/hero-4.jpeg'];
 
@@ -184,7 +193,7 @@ export default function App() {
   const [newProduct, setNewProduct] = useState({
     name: '', price: '' as number | string, description: '', category: 'Sac à main', colors: '', images: [] as string[],
     stockQuantity: 1, showFomo: false, isPublished: false, isPreOrder: false,
-    colorVariants: [] as { name: string; image: string; stockQuantity: number }[],
+    colorVariants: [] as { name: string; images: string[]; stockQuantity: number }[],
   });
 
   // États Admin - Suivi
@@ -817,7 +826,7 @@ export default function App() {
                          type="button"
                          onClick={() => {
                            const variants = (isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [];
-                           const updated = [...variants, { name: '', image: '', stockQuantity: 1 }];
+                           const updated = [...variants, { name: '', images: [], stockQuantity: 1 }];
                            if (isEditing) setIsEditing({ ...isEditing, colorVariants: updated });
                            else setNewProduct({ ...newProduct, colorVariants: updated });
                          }}
@@ -830,77 +839,110 @@ export default function App() {
                        <p className="text-[9px] text-stone-300 italic py-2">Aucune variante. Ajoutez les couleurs disponibles avec leur image et stock.</p>
                      ) : (
                        <div className="space-y-3">
-                         {((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || []).map((variant: any, vIdx: number) => (
-                           <div key={vIdx} className="flex items-start gap-3 bg-stone-50 p-3 border border-stone-100">
-                             {/* Mini-thumbnail + upload */}
-                             <label className="w-16 h-16 bg-white border border-stone-200 flex items-center justify-center cursor-pointer hover:border-[#C5A059] transition-colors relative overflow-hidden flex-shrink-0">
-                               {variant.image ? (
-                                 <img src={variant.image} className="w-full h-full object-cover" alt={variant.name} />
-                               ) : (
-                                 <span className="text-[8px] uppercase tracking-widest text-stone-300 text-center px-1">Photo</span>
-                               )}
-                               <input
-                                 type="file"
-                                 accept="image/*"
-                                 className="hidden"
-                                 onChange={(e) => {
-                                   const file = e.target.files?.[0];
-                                   if (!file) return;
-                                   const reader = new FileReader();
-                                   reader.onload = (ev) => {
-                                     const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
-                                     variants[vIdx] = { ...variants[vIdx], image: ev.target?.result as string };
-                                     if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
-                                     else setNewProduct({ ...newProduct, colorVariants: variants });
-                                   };
-                                   reader.readAsDataURL(file);
-                                 }}
-                               />
-                             </label>
-                             <div className="flex-1 space-y-2 min-w-0">
-                               <input
-                                 type="text"
-                                 placeholder="Nom (ex: Noir, Ivoire)"
-                                 value={variant.name}
-                                 onChange={(e) => {
-                                   const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
-                                   variants[vIdx] = { ...variants[vIdx], name: e.target.value };
-                                   if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
-                                   else setNewProduct({ ...newProduct, colorVariants: variants });
-                                 }}
-                                 className="w-full border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
-                               />
-                               <div className="flex items-center gap-2">
-                                 <span className="text-[9px] uppercase tracking-widest text-stone-400 flex-shrink-0">Stock</span>
+                         {((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || []).map((variant: any, vIdx: number) => {
+                           const variantImages = getVariantImages(variant);
+                           return (
+                           <div key={vIdx} className="space-y-3 bg-stone-50 p-3 border border-stone-100">
+                             <div className="flex items-start gap-3">
+                               <div className="flex-1 space-y-2 min-w-0">
                                  <input
-                                   type="number"
-                                   min="0"
-                                   value={variant.stockQuantity}
+                                   type="text"
+                                   placeholder="Nom (ex: Noir, Ivoire)"
+                                   value={variant.name}
                                    onChange={(e) => {
                                      const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
-                                     variants[vIdx] = { ...variants[vIdx], stockQuantity: Number(e.target.value) || 0 };
+                                     variants[vIdx] = { ...variants[vIdx], name: e.target.value };
                                      if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
                                      else setNewProduct({ ...newProduct, colorVariants: variants });
                                    }}
-                                   className="w-20 border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
+                                   className="w-full border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
                                  />
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-[9px] uppercase tracking-widest text-stone-400 flex-shrink-0">Stock</span>
+                                   <input
+                                     type="number"
+                                     min="0"
+                                     value={variant.stockQuantity}
+                                     onChange={(e) => {
+                                       const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                       variants[vIdx] = { ...variants[vIdx], stockQuantity: Number(e.target.value) || 0 };
+                                       if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                       else setNewProduct({ ...newProduct, colorVariants: variants });
+                                     }}
+                                     className="w-20 border-b border-stone-200 bg-transparent py-1 text-sm focus:border-[#C5A059] outline-none font-light"
+                                   />
+                                 </div>
+                               </div>
+                               <button
+                                 type="button"
+                                 onClick={() => {
+                                   const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                   variants.splice(vIdx, 1);
+                                   if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                   else setNewProduct({ ...newProduct, colorVariants: variants });
+                                 }}
+                                 className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0 mt-1"
+                                 aria-label="Retirer cette couleur"
+                               >
+                                 <Trash2 size={14}/>
+                               </button>
+                             </div>
+                             {/* Galerie d'images de la variante */}
+                             <div className="space-y-1.5">
+                               <p className="text-[9px] uppercase tracking-widest text-stone-400">Photos de cette couleur</p>
+                               <div className="flex flex-wrap gap-2">
+                                 {variantImages.map((img: string, imgIdx: number) => (
+                                   <div key={imgIdx} className="relative w-16 h-16 bg-white border border-stone-200 overflow-hidden group">
+                                     <img src={img} className="w-full h-full object-cover" alt={`${variant.name} ${imgIdx + 1}`} />
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                         const nextImages = variantImages.filter((_, i) => i !== imgIdx);
+                                         variants[vIdx] = { ...variants[vIdx], images: nextImages };
+                                         delete variants[vIdx].image;
+                                         if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                         else setNewProduct({ ...newProduct, colorVariants: variants });
+                                       }}
+                                       className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                       aria-label="Retirer cette image"
+                                     >
+                                       <X size={10}/>
+                                     </button>
+                                   </div>
+                                 ))}
+                                 <label className="w-16 h-16 bg-white border border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-[#C5A059] hover:bg-amber-50 transition-colors flex-shrink-0">
+                                   <Plus size={14} className="text-stone-400"/>
+                                   <span className="text-[8px] uppercase tracking-widest text-stone-400 mt-0.5">Photo</span>
+                                   <input
+                                     type="file"
+                                     accept="image/*"
+                                     multiple
+                                     className="hidden"
+                                     onChange={(e) => {
+                                       const files = Array.from(e.target.files || []);
+                                       if (files.length === 0) return;
+                                       Promise.all(files.map(f => new Promise<string>(resolve => {
+                                         const reader = new FileReader();
+                                         reader.onload = ev => resolve(ev.target?.result as string);
+                                         reader.readAsDataURL(f);
+                                       }))).then(newImgs => {
+                                         const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
+                                         const currentImgs = getVariantImages(variants[vIdx]);
+                                         variants[vIdx] = { ...variants[vIdx], images: [...currentImgs, ...newImgs] };
+                                         delete variants[vIdx].image;
+                                         if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
+                                         else setNewProduct({ ...newProduct, colorVariants: variants });
+                                       });
+                                       e.target.value = '';
+                                     }}
+                                   />
+                                 </label>
                                </div>
                              </div>
-                             <button
-                               type="button"
-                               onClick={() => {
-                                 const variants = [...((isEditing ? isEditing.colorVariants : newProduct.colorVariants) || [])];
-                                 variants.splice(vIdx, 1);
-                                 if (isEditing) setIsEditing({ ...isEditing, colorVariants: variants });
-                                 else setNewProduct({ ...newProduct, colorVariants: variants });
-                               }}
-                               className="text-stone-300 hover:text-red-500 transition-colors flex-shrink-0 mt-1"
-                               aria-label="Retirer cette couleur"
-                             >
-                               <Trash2 size={14}/>
-                             </button>
                            </div>
-                         ))}
+                           );
+                         })}
                        </div>
                      )}
                    </div>
@@ -1000,7 +1042,7 @@ export default function App() {
                                const remainder = totalStock - (baseShare * oldColors.length);
                                migrated.colorVariants = oldColors.map((name: string, i: number) => ({
                                  name,
-                                 image: fallbackImage,
+                                 images: fallbackImage ? [fallbackImage] : [],
                                  stockQuantity: baseShare + (i < remainder ? 1 : 0),
                                }));
                              } else {
@@ -1313,14 +1355,15 @@ export default function App() {
     );
   }
 
-  // --- IMAGES À AFFICHER : si une couleur est sélectionnée et a sa propre image, on la met en premier
+  // --- IMAGES À AFFICHER : si une couleur est sélectionnée et a ses propres images, on les met en premier
   const displayImages: string[] = (() => {
     if (!selectedProduct) return [];
     const base: string[] = selectedProduct.images || [];
     if (!Array.isArray(selectedProduct.colorVariants)) return base;
     const variant = selectedProduct.colorVariants.find((v: any) => v.name === selectedColor);
-    if (variant?.image && !base.includes(variant.image)) {
-      return [variant.image, ...base];
+    const variantImgs = getVariantImages(variant).filter((img: string) => !base.includes(img));
+    if (variantImgs.length > 0) {
+      return [...variantImgs, ...base];
     }
     return base;
   })();
@@ -2094,13 +2137,15 @@ export default function App() {
                             {selectedProduct.colorVariants.map((variant: any, idx: number) => {
                               const variantOut = variant.stockQuantity <= 0;
                               const isActive = selectedColor === variant.name;
+                              const variantImgs = getVariantImages(variant);
+                              const thumb = variantImgs[0];
                               return (
                                 <button
                                   key={idx}
                                   onClick={() => {
                                     setSelectedColor(variant.name);
-                                    // L'image de la variante est prépendue dans displayImages -> on saute à l'index 0
-                                    if (variant.image) setCurrentImageIndex(0);
+                                    // Les images de la variante sont prépendues dans displayImages -> on saute à l'index 0
+                                    if (variantImgs.length > 0) setCurrentImageIndex(0);
                                   }}
                                   disabled={variantOut}
                                   className={`flex items-center gap-2 px-3 py-2 text-[10px] uppercase tracking-widest border transition-all ${
@@ -2111,9 +2156,9 @@ export default function App() {
                                         : 'border-stone-200 text-stone-500 hover:border-[#C5A059] hover:text-[#C5A059]'
                                   }`}
                                 >
-                                  {variant.image && (
+                                  {thumb && (
                                     <span className="w-6 h-6 bg-stone-100 overflow-hidden inline-block flex-shrink-0">
-                                      <img src={variant.image} className={`w-full h-full object-cover ${variantOut ? 'grayscale' : ''}`} alt={variant.name} />
+                                      <img src={thumb} className={`w-full h-full object-cover ${variantOut ? 'grayscale' : ''}`} alt={variant.name} />
                                     </span>
                                   )}
                                   <span>{variant.name}{variantOut && ' · épuisé'}</span>
