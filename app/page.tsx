@@ -1555,7 +1555,8 @@ export default function App() {
               .sort((a, b) => {
                 const aOut = a.stockQuantity !== undefined && a.stockQuantity <= 0 ? 1 : 0;
                 const bOut = b.stockQuantity !== undefined && b.stockQuantity <= 0 ? 1 : 0;
-                return aOut - bOut;
+                if (aOut !== bOut) return aOut - bOut;
+                return (Number(b.price) || 0) - (Number(a.price) || 0);
               })
               .map((p, i) => {
               const isSoldOut = p.stockQuantity !== undefined && p.stockQuantity <= 0;
